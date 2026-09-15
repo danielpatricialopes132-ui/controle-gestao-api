@@ -1,62 +1,75 @@
 import { NextResponse } from 'next/server';
-import { verifyIdToken } from '../../../../../../lib/auth';
-import { prisma } from '../../../../../../lib/prisma';
-
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const authHeader = request.headers.get('authorization');
-    const userAuth = await verifyIdToken(request);
-    if (userAuth.role === 'MASTER') {
-      return NextResponse.json({ success: false, error: 'Restrito a Tenants.' }, { status: 403 });
-    }
-    const tenantId = userAuth.tenantId;
-
-    const adendos = await prisma.adendoObra.findMany({
-      where: { 
-        tenantId,
-        obraId: params.id
-      },
-      orderBy: { dataAprovacao: 'desc' }
-    });
-
-    return NextResponse.json({ success: true, data: adendos });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 401 });
-  }
-}
+import { verifyIdToken } from '../../../../../lib/auth';
+import { prisma } from '../../../../../lib/prisma';
 
 export async function POST(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const userAuth = await verifyIdToken(request);
-    if (userAuth.role === 'MASTER') {
-      return NextResponse.json({ success: false, error: 'Restrito a Tenants.' }, { status: 403 });
-    }
-    const tenantId = userAuth.tenantId;
-    const body = await request.json();
+    const decodedToken = await verifyIdToken(request);
     
-    if (!body.descricao || !body.valor) {
-      return NextResponse.json({ success: false, error: 'Descrição e Valor são obrigatórios' }, { status: 400 });
+    const usuario = await prisma.usuario.findUnique({
+      where: { firebaseUid: decodedToken.uid },
+    });
+
+    if (!usuario) {
+      return NextResponse.json({ success: false, error: 'Usuário não encontrado' }, { status: 404 });
     }
 
-    const adendo = await prisma.adendoObra.create({
+    let targetTenantId = decodedToken.tenantId;
+
+    const { id: obraId } = params;
+    
+    // Validar obra
+    const obra = await prisma.obra.findFirst({
+      where: { id: obraId, tenantId: targetTenantId },
+      include: { contrato: true }
+    });
+
+    if (!obra) {
+      return NextResponse.json({ success: false, error: 'Obra não encontrada' }, { status: 404 });
+    }
+
+    const body = await request.json();
+    const { descricao, valor, dataAssinatura } = body;
+
+    if (!descricao || valor === undefined) {
+      return NextResponse.json({ success: false, error: 'Descrição e valor são obrigatórios' }, { status: 400 });
+    }
+
+    // Se a obra ainda não tem contrato principal, criaremos um contrato "fake" para atrelar o adendo,
+    // ou exigimos que o contrato seja criado antes. Vamos simplificar e criar um dinamicamente se faltar.
+    let contratoId = obra.contrato?.id;
+    if (!contratoId) {
+      const novoContrato = await prisma.contrato.create({
+        data: {
+          descricao: 'Contrato Principal (Automático)',
+          valor: 0,
+          obraId: obra.id,
+          tenantId: targetTenantId,
+        }
+      });
+      contratoId = novoContrato.id;
+    }
+
+    const adendo = await prisma.adendo.create({
       data: {
-        descricao: body.descricao,
-        valor: parseFloat(body.valor),
-        dataAprovacao: body.dataAprovacao,
-        obraId: params.id,
-        tenantId: tenantId,
+        descricao,
+        valor: parseFloat(valor.toString()),
+        dataAssinatura: dataAssinatura ? new Date(dataAssinatura) : new Date(),
+        contratoId,
+        tenantId: targetTenantId,
       }
     });
 
-    return NextResponse.json({ success: true, data: adendo });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 401 });
+    return NextResponse.json({
+      success: true,
+      data: adendo
+    });
+
+  } catch (error) {
+    console.error('Erro em POST /api/obras/[id]/adendos:', error);
+    return NextResponse.json({ success: false, error: 'Erro interno' }, { status: 500 });
   }
 }

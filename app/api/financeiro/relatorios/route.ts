@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { verifyIdToken } from '../../../../../lib/auth';
-import { prisma } from '../../../../../lib/prisma';
+import { verifyIdToken } from '../../../../lib/auth';
+import { prisma } from '../../../../lib/prisma';
 
 export async function GET(request: Request) {
   try {
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
     let totalReceitas = 0;
     let totalDespesas = 0;
 
-    transacoes.forEach(t => {
+    transacoes.forEach((t: any) => {
       if (t.tipo === 'RECEITA') {
         totalReceitas += t.valor;
       } else {

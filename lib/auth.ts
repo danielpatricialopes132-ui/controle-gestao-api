@@ -1,8 +1,9 @@
-import * as admin from 'firebase-admin';
+import { getApps, initializeApp, cert } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
+if (!getApps().length) {
+  initializeApp({
+    credential: cert({
       projectId: process.env.FIREBASE_PROJECT_ID,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
       privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
@@ -17,7 +18,7 @@ export async function verifyIdToken(request: Request) {
   }
 
   const token = authHeader.split('Bearer ')[1];
-  const decodedToken = await admin.auth().verifyIdToken(token);
+  const decodedToken = await getAuth().verifyIdToken(token);
   const MASTER_EMAILS = ['danielsmlopes@hotmail.com', 'patigrubel@gmail.com'];
   const isMaster = decodedToken.email && MASTER_EMAILS.includes(decodedToken.email);
   
