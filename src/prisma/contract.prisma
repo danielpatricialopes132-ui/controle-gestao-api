@@ -1,0 +1,283 @@
+// use prisma-8
+
+model Tenant {
+  id        String   @id @default(uuid())
+  nome      String
+  documento String?  @unique // CNPJ ou CPF do dono do Tenant
+  createdAt TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
+
+  // Relacionamentos
+  usuarios     Usuario[]
+  clientes     Cliente[]
+  obras        Obra[]
+  funcionarios Funcionario[]
+  planosConta  PlanoConta[]
+  transacoes   TransacaoFinanceira[]
+  vales        Vale[]
+  mensagens    MensagemWhatsapp[]
+  contatos     Contato[]
+  presencas    RegistroPresenca[]
+  adendos      AdendoObra[]
+
+  @@map("tenants")
+}
+
+model Usuario {
+  id        String   @id @default(uuid())
+  firebaseUid String @unique // UID gerado pelo Firebase Auth
+  nome      String
+  email     String
+  role      String   @default("USER") // ADMIN, USER, etc
+  createdAt TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
+
+  // Multi-tenant
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@map("usuarios")
+}
+
+model Cliente {
+  id        String   @id @default(uuid())
+  nome      String
+  cpfCnpj   String?
+  email     String?
+  telefone  String?
+  createdAt TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
+
+  // Multi-tenant
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  transacoes TransacaoFinanceira[]
+  mensagens MensagemWhatsapp[]
+
+  @@unique([tenantId, cpfCnpj])
+  @@index([tenantId])
+  @@map("clientes")
+}
+
+model Funcionario {
+  id        String   @id @default(uuid())
+  nome      String
+  cargo     String
+  salario   Float?
+  valorDiariaMotorista Float?
+  createdAt TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
+
+  // Multi-tenant
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  vales     Vale[]
+  transacoes TransacaoFinanceira[]
+  mensagens MensagemWhatsapp[]
+  presencas RegistroPresenca[]
+
+  @@index([tenantId])
+  @@map("funcionarios")
+}
+
+model Obra {
+  id        String   @id @default(uuid())
+  nome      String
+  status    String   @default("EM_ANDAMENTO") // EM_ANDAMENTO, CONCLUIDA, CANCELADA
+  endereco  String?
+  valorContrato Float?
+  createdAt TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
+
+  // Multi-tenant
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  transacoes TransacaoFinanceira[]
+  vales      Vale[]
+  mensagens  MensagemWhatsapp[]
+  presencas  RegistroPresenca[]
+  adendos    AdendoObra[]
+
+  @@index([tenantId])
+  @@map("obras")
+}
+
+model PlanoConta {
+  id        String   @id @default(uuid())
+  nome      String   // Ex: "Materiais de Construção", "Vale Transporte"
+  tipo      String   // "RECEITA" ou "DESPESA"
+  createdAt TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
+
+  // Multi-tenant
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  transacoes TransacaoFinanceira[]
+
+  @@index([tenantId])
+  @@map("planos_conta")
+}
+
+model TransacaoFinanceira {
+  id          String   @id @default(uuid())
+  descricao   String
+  tipo        String   // "RECEITA" ou "DESPESA"
+  valor       Float
+  dataVencimento TimestamptzString
+  dataPagamento  TimestamptzString? // Se nulo, está "em aberto"
+  status      String   @default("PENDENTE") // PENDENTE, PAGO, CANCELADO
+  
+  createdAt   TimestamptzString @default(now())
+  updatedAt   temporal.updatedAtString()
+
+  obraId      String?
+  obra        Obra?    @relation(fields: [obraId], references: [id])
+  
+  clienteId   String?
+  cliente     Cliente? @relation(fields: [clienteId], references: [id])
+  
+  funcionarioId String?
+  funcionario Funcionario? @relation(fields: [funcionarioId], references: [id])
+
+  planoContaId String
+  planoConta   PlanoConta @relation(fields: [planoContaId], references: [id])
+
+  // Opcionalmente atrelar a um vale se foi descontado/pago
+  valeId      String?
+  vale        Vale?    @relation(fields: [valeId], references: [id])
+
+  // Opcionalmente atrelar a um aditivo do contrato principal da obra
+  adendoId    String?
+  adendo      AdendoObra? @relation(fields: [adendoId], references: [id])
+
+  // Multi-tenant
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, obraId])
+  @@map("transacoes_financeiras")
+}
+
+model Vale {
+  id          String   @id @default(uuid())
+  valor       Float
+  tipo        String   @default("SALARIAL") // SALARIAL, VIAGEM
+  dataEmissao TimestamptzString @default(now())
+  descricao   String?
+  status      String   @default("ABERTO") // ABERTO, DESCONTADO, CANCELADO
+  
+  createdAt   TimestamptzString @default(now())
+  updatedAt   temporal.updatedAtString()
+
+  funcionarioId String
+  funcionario Funcionario @relation(fields: [funcionarioId], references: [id])
+
+  obraId      String?
+  obra        Obra?    @relation(fields: [obraId], references: [id])
+
+  transacoes  TransacaoFinanceira[]
+
+  // Multi-tenant
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, funcionarioId])
+  @@map("vales")
+}
+
+model MensagemWhatsapp {
+  id          String   @id @default(uuid())
+  numeroDestino String
+  conteudo    String
+  status      String   @default("ENVIADA") // ENVIADA, ENTREGUE, LIDA, ERRO
+  messageId   String?  // ID retornado pela Evolution API
+  
+  createdAt   TimestamptzString @default(now())
+  updatedAt   temporal.updatedAtString()
+
+  // Relacionamentos Opcionais (Contexto)
+  clienteId   String?
+  cliente     Cliente? @relation(fields: [clienteId], references: [id])
+  
+  funcionarioId String?
+  funcionario Funcionario? @relation(fields: [funcionarioId], references: [id])
+
+  obraId      String?
+  obra        Obra?    @relation(fields: [obraId], references: [id])
+
+  // Multi-tenant
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@map("mensagens_whatsapp")
+}
+
+model RegistroPresenca {
+  id            String   @id @default(uuid())
+  data          TimestamptzString // Dia do registro
+  status        String   // PRESENTE, MEIO_DIA, FALTA, CHUVA
+  observacao    String?
+  
+  createdAt     TimestamptzString @default(now())
+  updatedAt     temporal.updatedAtString()
+
+  funcionarioId String
+  funcionario   Funcionario @relation(fields: [funcionarioId], references: [id])
+
+  obraId        String?
+  obra          Obra?       @relation(fields: [obraId], references: [id])
+
+  // Multi-tenant
+  tenantId      String
+  tenant        Tenant      @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, data])
+  @@index([tenantId, obraId, data])
+  @@map("registros_presenca")
+}
+
+model Contato {
+  id            String   @id @default(uuid())
+  nome          String
+  telefone      String?
+  email         String?
+  especialidade String?  // Ex: Gesso, Elétrica, Fornecedor
+  empresa       String?
+  
+  createdAt     TimestamptzString @default(now())
+  updatedAt     temporal.updatedAtString()
+
+  // Multi-tenant
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@map("contatos")
+}
+
+model AdendoObra {
+  id            String   @id @default(uuid())
+  descricao     String
+  valor         Float
+  dataAprovacao TimestamptzString?
+  
+  createdAt     TimestamptzString @default(now())
+  updatedAt     temporal.updatedAtString()
+
+  obraId        String
+  obra          Obra     @relation(fields: [obraId], references: [id])
+
+  transacoes    TransacaoFinanceira[]
+
+  // Multi-tenant
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, obraId])
+  @@map("adendos_obra")
+}

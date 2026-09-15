@@ -1,0 +1,217 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  nome      String
+  documento String?  @unique // CNPJ ou CPF do dono do Tenant
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  usuarios     Usuario[]
+  clientes     Cliente[]
+  obras        Obra[]
+  funcionarios Funcionario[]
+  registrosPresenca RegistroPresenca[]
+  contatos          Contato[]
+  contratos         Contrato[]
+  adendos           Adendo[]
+  transacoes        TransacaoFinanceira[]
+
+  @@map("tenants")
+}
+
+model Usuario {
+  id        String   @id @default(uuid())
+  firebaseUid String @unique // UID gerado pelo Firebase Auth
+  nome      String
+  email     String
+  role      String   @default("USER") // ADMIN, USER, etc
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Multi-tenant
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, email]) // Impede emails duplicados DENTRO do mesmo tenant
+  @@index([tenantId])
+  @@map("usuarios")
+}
+
+model Cliente {
+  id        String   @id @default(uuid())
+  nome      String
+  cpfCnpj   String?
+  email     String?
+  telefone  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Multi-tenant
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, cpfCnpj]) // O mesmo CPF/CNPJ pode ser cliente de tenants diferentes, mas não duplicado no mesmo tenant
+  @@index([tenantId])
+  @@map("clientes")
+}
+
+model Funcionario {
+  id        String   @id @default(uuid())
+  nome      String
+  cargo     String
+  salario   Decimal?
+  valorDiariaMotorista Decimal?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Multi-tenant
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  registrosPresenca RegistroPresenca[]
+
+  @@index([tenantId])
+  @@map("funcionarios")
+}
+
+model Obra {
+  id        String   @id @default(uuid())
+  nome      String
+  status    String   @default("EM_ANDAMENTO") // EM_ANDAMENTO, CONCLUIDA, CANCELADA
+  endereco  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Multi-tenant
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  registrosPresenca RegistroPresenca[]
+  contrato          Contrato?
+  transacoes        TransacaoFinanceira[]
+
+  @@index([tenantId])
+  @@map("obras")
+}
+
+model RegistroPresenca {
+  id            String   @id @default(uuid())
+  data          DateTime
+  status        String   // PRESENTE, MEIO_DIA, FALTA, CHUVA
+  observacao    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  funcionarioId String
+  funcionario   Funcionario @relation(fields: [funcionarioId], references: [id], onDelete: Cascade)
+  
+  obraId        String
+  obra          Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  // Multi-tenant
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([obraId])
+  @@index([funcionarioId])
+  @@map("registros_presenca")
+}
+
+model Contato {
+  id            String   @id @default(uuid())
+  nome          String
+  tipo          String   // FORNECEDOR, TERCEIRIZADO, CLIENTE
+  especialidade String?  // Gesso, Elétrica, etc.
+  telefone      String?
+  email         String?
+  documento     String?  // CPF/CNPJ
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Multi-tenant
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("contatos")
+}
+
+model Contrato {
+  id            String   @id @default(uuid())
+  descricao     String
+  valor         Decimal
+  dataInicio    DateTime?
+  dataFim       DateTime?
+  status        String   @default("ATIVO") // ATIVO, CONCLUIDO, CANCELADO
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  obraId        String   @unique // 1 Contrato Principal por Obra
+  obra          Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  adendos       Adendo[]
+
+  // Multi-tenant
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("contratos")
+}
+
+model Adendo {
+  id            String   @id @default(uuid())
+  descricao     String
+  valor         Decimal
+  dataAssinatura DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  contratoId    String
+  contrato      Contrato @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+
+  // Multi-tenant
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([contratoId])
+  @@map("adendos")
+}
+
+model TransacaoFinanceira {
+  id            String   @id @default(uuid())
+  tipo          String   // RECEITA, DESPESA
+  categoria     String   // PESSOAL, FORNECEDOR, MATERIAL, ADENDO, CONTRATO_PRINCIPAL
+  descricao     String
+  valor         Decimal
+  dataVencimento DateTime?
+  dataPagamento  DateTime?
+  status        String   @default("PENDENTE") // PENDENTE, PAGO, CANCELADO
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  obraId        String
+  obra          Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  // Multi-tenant
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([obraId])
+  @@map("transacoes_financeiras")
+}
