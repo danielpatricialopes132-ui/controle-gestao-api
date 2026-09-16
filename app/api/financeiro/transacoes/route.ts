@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server';
-import { verifyIdToken } from '../../../../../lib/auth';
-import { prisma } from '../../../../../lib/prisma';
+import { verifyIdToken } from '../../../../lib/auth';
+import { prisma } from '../../../../lib/prisma';
 
 export async function GET(request: Request) {
   try {
     const authHeader = request.headers.get('authorization');
     const userAuth = await verifyIdToken(request);
-
-, { status: 403 });
-    }
 
     const tenantId = userAuth.tenantId;
 
@@ -31,9 +28,6 @@ export async function POST(request: Request) {
   try {
     const authHeader = request.headers.get('authorization');
     const userAuth = await verifyIdToken(request);
-
-, { status: 403 });
-    }
 
     const tenantId = userAuth.tenantId;
     const body = await request.json();

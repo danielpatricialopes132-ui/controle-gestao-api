@@ -6,7 +6,8 @@ export async function GET(request: Request) {
   try {
     const authHeader = request.headers.get('authorization');
     const userAuth = await verifyIdToken(request);
-, { status: 403 });
+    if (!userAuth || !userAuth.tenantId) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
     const tenantId = userAuth.tenantId;
 
@@ -25,7 +26,8 @@ export async function POST(request: Request) {
   try {
     const authHeader = request.headers.get('authorization');
     const userAuth = await verifyIdToken(request);
-, { status: 403 });
+    if (!userAuth || !userAuth.tenantId) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
     const tenantId = userAuth.tenantId;
     const body = await request.json();

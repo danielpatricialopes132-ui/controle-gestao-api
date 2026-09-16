@@ -7,9 +7,6 @@ export async function GET(request: Request) {
     const authHeader = request.headers.get('authorization');
     const userAuth = await verifyIdToken(request);
 
-, { status: 403 });
-    }
-
     const tenantId = userAuth.tenantId;
 
     const obras = await prisma.obra.findMany({
@@ -27,9 +24,6 @@ export async function POST(request: Request) {
   try {
     const authHeader = request.headers.get('authorization');
     const userAuth = await verifyIdToken(request);
-
-, { status: 403 });
-    }
 
     const tenantId = userAuth.tenantId;
     const body = await request.json();
