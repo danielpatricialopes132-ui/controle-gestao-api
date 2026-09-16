@@ -40,7 +40,6 @@ export async function POST(request: Request) {
       data: {
         nome: body.nome,
         documento: body.documento,
-        logoUrl: body.logoUrl || null,
       }
     });
 
@@ -51,3 +50,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 401 });
   }
 }
+

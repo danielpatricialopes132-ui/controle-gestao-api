@@ -1,17 +1,13 @@
 import { NextResponse } from 'next/server';
-import { verifyIdToken } from '../../../../lib/auth';
-import { prisma } from '../../../../lib/prisma';
+import { verifyIdToken } from '../../../lib/auth';
+import { prisma } from '../../../lib/prisma';
 
 export async function GET(request: Request) {
   try {
     const authHeader = request.headers.get('authorization');
     const userAuth = await verifyIdToken(request);
 
-    // Se MASTER, não deveria ver obras específicas a menos que passe um tenantId por query, 
-    // mas por segurança e escopo atual, retornaremos erro ou obras globais (vazio por padrão).
-    // Para simplificar, o MASTER deve agir como tenant ou bloquear a rota.
-    if (userAuth.role === 'MASTER') {
-      return NextResponse.json({ success: false, error: 'Funcionalidade restrita a Tenants.' }, { status: 403 });
+, { status: 403 });
     }
 
     const tenantId = userAuth.tenantId;
@@ -32,8 +28,7 @@ export async function POST(request: Request) {
     const authHeader = request.headers.get('authorization');
     const userAuth = await verifyIdToken(request);
 
-    if (userAuth.role === 'MASTER') {
-      return NextResponse.json({ success: false, error: 'Apenas empresas podem cadastrar obras.' }, { status: 403 });
+, { status: 403 });
     }
 
     const tenantId = userAuth.tenantId;
@@ -57,3 +52,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 401 });
   }
 }
+

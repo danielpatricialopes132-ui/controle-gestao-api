@@ -6,8 +6,7 @@ export async function GET(request: Request) {
   try {
     const authHeader = request.headers.get('authorization');
     const userAuth = await verifyIdToken(request);
-    if (userAuth.role === 'MASTER') {
-      return NextResponse.json({ success: false, error: 'Restrito a Tenants.' }, { status: 403 });
+, { status: 403 });
     }
     const tenantId = userAuth.tenantId;
 
@@ -52,3 +51,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 401 });
   }
 }
+
+

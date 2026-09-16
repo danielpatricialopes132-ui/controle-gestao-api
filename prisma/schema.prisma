@@ -36,7 +36,8 @@ model Usuario {
   firebaseUid String @unique // UID gerado pelo Firebase Auth
   nome      String
   email     String
-  role      String   @default("USER") // ADMIN, USER, etc
+  role      String   @default("USER") // MASTER, ADMIN, USER, etc
+  status    String   @default("PENDENTE") // PENDENTE, ATIVO, BLOQUEADO
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

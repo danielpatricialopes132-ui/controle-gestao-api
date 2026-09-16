@@ -9,8 +9,10 @@ export async function GET(request: Request) {
     // 1. Extrai o token e decodifica (garantindo que tem tenant_id ou é MASTER)
     const userAuth = await verifyIdToken(request);
 
-    // 2. Comportamento para MASTER
-    if (userAuth.role === 'MASTER') {
+    // 2. Comportamento para MASTER (Dashboard Global ou Específico)
+    const tenantOverride = request.headers.get('x-tenant-override');
+
+    if (userAuth.role === 'MASTER' && !tenantOverride) {
       const totalTenants = await prisma.tenant.count();
       const totalUsers = await prisma.usuario.count();
       
@@ -28,7 +30,8 @@ export async function GET(request: Request) {
     }
 
     // 3. Comportamento para Tenant Normal (Isolamento de Dados)
-    const tenantId = userAuth.tenantId;
+    // Se for MASTER e tiver override, usa o override. Senão, usa o tenant_id do usuário.
+    const tenantId = (userAuth.role === 'MASTER' && tenantOverride) ? tenantOverride : userAuth.tenantId;
 
     // A. Busca o nome do Tenant
     const tenant = await prisma.tenant.findUnique({
@@ -69,3 +72,4 @@ export async function GET(request: Request) {
     );
   }
 }
+
