@@ -73,7 +73,9 @@ model Funcionario {
   id                   String   @id @default(uuid())
   nome                 String
   cargo                String
+  tipoPagamento        String   @default("MENSAL") // MENSAL, DIARISTA
   salario              Decimal?
+  valorDiaria          Decimal?
   valorDiariaMotorista Decimal?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt

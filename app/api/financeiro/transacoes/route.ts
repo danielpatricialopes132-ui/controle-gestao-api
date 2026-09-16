@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const transacoes = await prisma.transacaoFinanceira.findMany({
       where: { tenantId },
       include: {
-        planoConta: { select: { nome: true } },
+        categoriaFk: { select: { descricao: true } },
         obra: { select: { nome: true } }
       },
       orderBy: { dataVencimento: 'desc' }
@@ -20,7 +20,8 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ success: true, data: transacoes });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 401 });
+    console.error('Erro em GET transacoes:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 400 });
   }
 }
 
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
         valor: parseFloat(body.valor),
         dataVencimento: body.dataVencimento, // Formato ISO 8601 string
         status: body.status || 'PENDENTE',
-        planoContaId: body.planoContaId,
+        categoriaId: body.planoContaId,
         obraId: body.obraId || null,
         clienteId: body.clienteId || null,
         funcionarioId: body.funcionarioId || null,

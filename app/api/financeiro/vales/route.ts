@@ -9,18 +9,22 @@ export async function GET(request: Request) {
 
     const tenantId = userAuth.tenantId;
 
-    const vales = await prisma.vale.findMany({
-      where: { tenantId },
+    const vales = await prisma.transacaoFinanceira.findMany({
+      where: { 
+        tenantId,
+        categoria: 'PESSOAL'
+      },
       include: {
         funcionario: { select: { nome: true } },
         obra: { select: { nome: true } }
       },
-      orderBy: { dataEmissao: 'desc' }
+      orderBy: { dataVencimento: 'desc' }
     });
 
     return NextResponse.json({ success: true, data: vales });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 401 });
+    console.error('Erro em GET vales:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 400 });
   }
 }
 
@@ -36,12 +40,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Valor e Funcionario são obrigatórios' }, { status: 400 });
     }
 
-    const vale = await prisma.vale.create({
+    const vale = await prisma.transacaoFinanceira.create({
       data: {
         valor: parseFloat(body.valor),
-        tipo: body.tipo || 'SALARIAL',
-        descricao: body.descricao || null,
-        status: body.status || 'ABERTO',
+        tipo: 'DESPESA',
+        categoria: 'PESSOAL',
+        descricao: body.descricao || 'Adiantamento / Vale',
+        status: body.status || 'PENDENTE',
         funcionarioId: body.funcionarioId,
         obraId: body.obraId || null,
         tenantId: tenantId,
@@ -50,7 +55,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, data: vale });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 401 });
+    console.error('Erro em POST vales:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 400 });
   }
 }
 
