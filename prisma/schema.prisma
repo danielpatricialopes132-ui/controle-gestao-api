@@ -28,6 +28,7 @@ model Tenant {
   adendos               Adendo[]
   transacoes            TransacaoFinanceira[]
   categoriasFinanceiras CategoriaFinanceira[]
+  contasBancarias       ContaBancaria[]
 
   @@map("tenants")
 }
@@ -39,6 +40,7 @@ model Usuario {
   email       String
   role        String   @default("USER") // MASTER, ADMIN, USER, etc
   status      String   @default("PENDENTE") // PENDENTE, ATIVO, BLOQUEADO
+  telefone    String?  @unique // WhatsApp number for Evolution API
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -229,6 +231,27 @@ model CategoriaFinanceira {
   @@map("categorias_financeiras")
 }
 
+model ContaBancaria {
+  id        String   @id @default(uuid())
+  nome      String   // Ex: Banco do Brasil, Itaú, Caixa Físico
+  banco     String?  // Código do banco (opcional)
+  agencia   String?
+  conta     String?
+  saldoInicial Decimal @default(0)
+  isAtiva   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Multi-tenant
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  transacoes TransacaoFinanceira[]
+
+  @@index([tenantId])
+  @@map("contas_bancarias")
+}
+
 model TransacaoFinanceira {
   id   String @id @default(uuid())
   tipo String // RECEITA, DESPESA
@@ -244,6 +267,11 @@ model TransacaoFinanceira {
   valor          Decimal
   dataVencimento DateTime?
   dataPagamento  DateTime?
+  
+  // Novos campos para Contas a Pagar
+  codigoBarras   String?
+  observacao     String?
+
   status         String    @default("PENDENTE") // PENDENTE, PAGO, CANCELADO
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -260,6 +288,12 @@ model TransacaoFinanceira {
 
   clienteFornecedor String? // Nome legível para quem pagou/recebeu se não for funcionário
 
+  comprovanteUrl    String? // Link do comprovante armazenado
+
+  // Relacionamento com Conta Bancária / Caixa
+  contaBancariaId String?
+  contaBancaria   ContaBancaria? @relation(fields: [contaBancariaId], references: [id])
+
   // Multi-tenant
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -267,5 +301,6 @@ model TransacaoFinanceira {
   @@index([tenantId])
   @@index([obraId])
   @@index([categoriaId])
+  @@index([contaBancariaId])
   @@map("transacoes_financeiras")
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { verifyIdToken } from '../../../../lib/auth';
-import { prisma } from '../../../../lib/prisma';
+import { verifyIdToken } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: Request) {
   try {
@@ -12,8 +12,9 @@ export async function GET(request: Request) {
     const transacoes = await prisma.transacaoFinanceira.findMany({
       where: { tenantId },
       include: {
-        categoriaFk: { select: { descricao: true } },
-        obra: { select: { nome: true } }
+        categoriaFk: { select: { descricao: true, nome: true } },
+        obra: { select: { nome: true } },
+        contaBancaria: { select: { nome: true } }
       },
       orderBy: { dataVencimento: 'desc' }
     });
@@ -44,10 +45,14 @@ export async function POST(request: Request) {
         valor: parseFloat(body.valor),
         dataVencimento: body.dataVencimento, // Formato ISO 8601 string
         status: body.status || 'PENDENTE',
-        categoriaId: body.planoContaId,
+        categoriaId: body.categoriaId || body.planoContaId,
         obraId: body.obraId || null,
         clienteId: body.clienteId || null,
         funcionarioId: body.funcionarioId || null,
+        contaBancariaId: body.contaBancariaId || null,
+        codigoBarras: body.codigoBarras || null,
+        observacao: body.observacao || null,
+        comprovanteUrl: body.comprovanteUrl || null,
         tenantId: tenantId,
       }
     });

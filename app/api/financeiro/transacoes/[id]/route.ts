@@ -1,39 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getAuth } from 'firebase-admin/auth';
-import { initAdmin } from '@/lib/firebase-admin';
-
-initAdmin();
+import { verifyIdToken } from '@/lib/auth';
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-    }
-
-    const token = authHeader.split('Bearer ')[1];
-    const decodedToken = await getAuth().verifyIdToken(token);
-    let usuario = await prisma.usuario.findUnique({
-      where: { firebaseUid: decodedToken.uid },
-    });
-
-    if (!usuario) {
-      return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
-    }
-
-    const tenantId = usuario.tenantId;
+    const userAuth = await verifyIdToken(req);
+    const tenantId = userAuth.tenantId;
     const body = await req.json();
 
     const { 
       tipo, 
       descricao, 
       valor, 
-      categoriaFkId, 
+      categoriaId, 
       obraId, 
+      contaBancariaId,
       status, 
       dataVencimento, 
-      dataPagamento 
+      dataPagamento,
+      codigoBarras,
+      observacao 
     } = body;
 
     const transacao = await prisma.transacaoFinanceira.updateMany({
@@ -44,12 +30,16 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       data: {
         tipo,
         descricao,
-        valor,
-        categoriaFkId,
+        valor: valor != null ? parseFloat(valor) : undefined,
+        categoriaId: categoriaId || undefined,
         obraId,
+        contaBancariaId,
         status,
         dataVencimento: dataVencimento ? new Date(dataVencimento) : undefined,
         dataPagamento: dataPagamento ? new Date(dataPagamento) : undefined,
+        codigoBarras,
+        observacao,
+        comprovanteUrl: body.comprovanteUrl !== undefined ? body.comprovanteUrl : undefined,
       },
     });
 
@@ -66,22 +56,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-    }
-
-    const token = authHeader.split('Bearer ')[1];
-    const decodedToken = await getAuth().verifyIdToken(token);
-    let usuario = await prisma.usuario.findUnique({
-      where: { firebaseUid: decodedToken.uid },
-    });
-
-    if (!usuario) {
-      return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
-    }
-
-    const tenantId = usuario.tenantId;
+    const userAuth = await verifyIdToken(req);
+    const tenantId = userAuth.tenantId;
 
     const transacao = await prisma.transacaoFinanceira.deleteMany({
       where: {

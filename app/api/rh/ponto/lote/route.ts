@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { verifyIdToken } from "@/lib/auth";
+import { prisma } from '@/lib/prisma';
+import { verifyIdToken } from '@/lib/auth';
 
 // POST /api/rh/ponto/lote (Salvar lotes importados via WhatsApp)
 export async function POST(request: Request) {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyIdToken } from '../../../../lib/auth';
+import { verifyIdToken } from '@/lib/auth';
 import { connectEvolutionInstance, getEvolutionConnectionState } from '../../../../lib/whatsapp';
 
 export async function GET(request: Request) {
