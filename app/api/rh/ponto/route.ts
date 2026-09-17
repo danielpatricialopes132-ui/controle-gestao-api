@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyAuth } from "@/lib/auth";
+import { verifyIdToken } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
-    const userAuth = await verifyAuth(request);
+    const userAuth = await verifyIdToken(request);
     if (!userAuth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const userAuth = await verifyAuth(request);
+    const userAuth = await verifyIdToken(request);
     if (!userAuth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
         horasTrabalhadas: r.horasTrabalhadas || 8,
         percentualPago: r.percentualPago || 100,
         observacao: r.observacoes || "",
-        statusAprovacao: userAuth.role === "MASTER" ? "APROVADO" : "PENDENTE",
+        statusAprovacao: (userAuth.role === "MASTER" || userAuth.role === "ADMIN") ? "APROVADO" : "PENDENTE",
       }));
 
       await prisma.registroPresenca.createMany({

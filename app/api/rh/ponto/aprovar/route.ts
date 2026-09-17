@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyAuth } from "@/lib/auth";
+import { verifyIdToken } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
-    const userAuth = await verifyAuth(request);
+    const userAuth = await verifyIdToken(request);
     if (!userAuth || (userAuth.role !== "MASTER" && userAuth.role !== "ADMIN")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

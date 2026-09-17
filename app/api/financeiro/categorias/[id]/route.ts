@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyAuth } from '@/lib/auth';
+import { verifyIdToken } from '@/lib/auth';
 
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
   try {
-    const userAuth = await verifyAuth(request);
+    const userAuth = await verifyIdToken(request);
     if (!userAuth) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
@@ -36,7 +36,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
   try {
-    const userAuth = await verifyAuth(request);
+    const userAuth = await verifyIdToken(request);
     if (!userAuth) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }

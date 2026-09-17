@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { verifyAuth } from '@/lib/auth';
+import { verifyIdToken } from '@/lib/auth';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export async function POST(request: Request) {
   try {
-    const userAuth = await verifyAuth(request);
+    const userAuth = await verifyIdToken(request);
     if (!userAuth) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
