@@ -8,6 +8,7 @@ if (!getApps().length) {
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
       privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
     }),
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || 'controle-gestao-ea7ad.appspot.com',
   });
 }
 
@@ -57,4 +58,24 @@ export async function verifyIdToken(request: Request) {
     tenantId: finalTenantId,
     dbId: usuario.id
   };
+}
+
+import { getStorage } from 'firebase-admin/storage';
+
+export async function uploadToStorage(base64: string, destination: string, mimeType: string): Promise<string> {
+  const bucket = getStorage().bucket();
+  const file = bucket.file(destination);
+  
+  // Remove possible data prefix like "data:image/jpeg;base64,"
+  const base64Data = base64.replace(/^data:\w+\/\w+;base64,/, '');
+  const buffer = Buffer.from(base64Data, 'base64');
+  
+  await file.save(buffer, {
+    metadata: { contentType: mimeType },
+    public: true, // We make it public to be able to access the URL easily
+  });
+  
+  // Since we made it public, we can construct the public URL
+  const bucketName = bucket.name;
+  return `https://storage.googleapis.com/${bucketName}/${destination}`;
 }

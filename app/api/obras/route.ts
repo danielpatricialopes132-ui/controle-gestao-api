@@ -41,6 +41,15 @@ export async function POST(request: Request) {
       }
     });
 
+    // Criação automática do Estoque/Almoxarifado vinculado à Obra
+    await prisma.estoque.create({
+      data: {
+        nome: `Almoxarifado - ${obra.nome}`,
+        obraId: obra.id,
+        tenantId: tenantId,
+      }
+    });
+
     return NextResponse.json({ success: true, data: obra });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 401 });

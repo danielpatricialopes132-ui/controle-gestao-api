@@ -27,8 +27,8 @@ export async function PUT(
     const newStatus = data.status;
     let transacaoId = ordemOriginal.transacaoId;
 
-    // Se o status mudou para ENTREGUE e não havia transação financeira atrelada
-    if (newStatus === "ENTREGUE" && ordemOriginal.status !== "ENTREGUE" && !transacaoId) {
+    // 1. Regra Financeira: Lançar despesa quando APROVADA
+    if (newStatus === "APROVADA" && ordemOriginal.status !== "APROVADA" && !transacaoId) {
       const novaTransacao = await prisma.transacaoFinanceira.create({
         data: {
           tipo: "DESPESA",
@@ -42,6 +42,51 @@ export async function PUT(
         },
       });
       transacaoId = novaTransacao.id;
+    }
+
+    // 2. Regra de Estoque: Dar entrada física quando ENTREGUE
+    if (newStatus === "ENTREGUE" && ordemOriginal.status !== "ENTREGUE") {
+      // Pega os itens da ordem
+      const itensOrdem = await prisma.ordemCompraItem.findMany({
+        where: { ordemCompraId: id, tenantId }
+      });
+
+      if (ordemOriginal.obraId && itensOrdem.length > 0) {
+        // Encontra o estoque da obra
+        const estoque = await prisma.estoque.findUnique({
+          where: { obraId: ordemOriginal.obraId }
+        });
+
+        if (estoque) {
+          // Para cada item comprado, adiciona no estoque (upsert)
+          for (const item of itensOrdem) {
+            const estoqueItem = await prisma.estoqueItem.findUnique({
+              where: {
+                estoqueId_produtoId: {
+                  estoqueId: estoque.id,
+                  produtoId: item.produtoId
+                }
+              }
+            });
+
+            if (estoqueItem) {
+              await prisma.estoqueItem.update({
+                where: { id: estoqueItem.id },
+                data: { quantidade: { increment: item.quantidade } }
+              });
+            } else {
+              await prisma.estoqueItem.create({
+                data: {
+                  estoqueId: estoque.id,
+                  produtoId: item.produtoId,
+                  quantidade: item.quantidade,
+                  tenantId: tenantId
+                }
+              });
+            }
+          }
+        }
+      }
     }
 
     const ordem = await prisma.ordemCompra.update({

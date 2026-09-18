@@ -47,10 +47,12 @@ export async function GET(request: Request) {
     });
 
     let totalReceitas = 0;
-    let totalDespesas = 0;
+    let totalCustosDiretos = 0;
+    let totalDespesasFixas = 0;
 
     const receitasPorCategoria: Record<string, number> = {};
-    const despesasPorCategoria: Record<string, number> = {};
+    const custosDiretosPorCategoria: Record<string, number> = {};
+    const despesasFixasPorCategoria: Record<string, number> = {};
 
     transacoes.forEach((t) => {
       const valor = Number(t.valor);
@@ -62,25 +64,34 @@ export async function GET(request: Request) {
         totalReceitas += valor;
         receitasPorCategoria[nomeCat] = (receitasPorCategoria[nomeCat] || 0) + valor;
       } else {
-        totalDespesas += valor;
-        despesasPorCategoria[nomeCat] = (despesasPorCategoria[nomeCat] || 0) + valor;
+        if (t.obraId) {
+          // É Custo Direto (Vinculado a Obra)
+          totalCustosDiretos += valor;
+          custosDiretosPorCategoria[nomeCat] = (custosDiretosPorCategoria[nomeCat] || 0) + valor;
+        } else {
+          // É Despesa Fixa/Administrativa (Sem Obra)
+          totalDespesasFixas += valor;
+          despesasFixasPorCategoria[nomeCat] = (despesasFixasPorCategoria[nomeCat] || 0) + valor;
+        }
       }
     });
 
+    const lucroBruto = totalReceitas - totalCustosDiretos;
+    const lucroLiquido = lucroBruto - totalDespesasFixas;
+
     const resultado = {
       resumo: {
-        faturamento: totalReceitas,
-        custos: totalDespesas,
-        lucro: totalReceitas - totalDespesas,
+        receitas: totalReceitas,
+        custosDiretos: totalCustosDiretos,
+        lucroBruto: lucroBruto,
+        margemBrutaPercentual: totalReceitas > 0 ? (lucroBruto / totalReceitas) * 100 : 0,
+        despesasFixas: totalDespesasFixas,
+        lucroLiquido: lucroLiquido,
+        margemLiquidaPercentual: totalReceitas > 0 ? (lucroLiquido / totalReceitas) * 100 : 0,
       },
-      receitas: Object.entries(receitasPorCategoria).map(([nome, valor]) => ({
-        categoria: nome,
-        valor,
-      })).sort((a, b) => b.valor - a.valor),
-      despesas: Object.entries(despesasPorCategoria).map(([nome, valor]) => ({
-        categoria: nome,
-        valor,
-      })).sort((a, b) => b.valor - a.valor),
+      receitas: Object.entries(receitasPorCategoria).map(([nome, valor]) => ({ categoria: nome, valor })).sort((a, b) => b.valor - a.valor),
+      custosDiretos: Object.entries(custosDiretosPorCategoria).map(([nome, valor]) => ({ categoria: nome, valor })).sort((a, b) => b.valor - a.valor),
+      despesasFixas: Object.entries(despesasFixasPorCategoria).map(([nome, valor]) => ({ categoria: nome, valor })).sort((a, b) => b.valor - a.valor),
     };
 
     return NextResponse.json(resultado);

@@ -35,6 +35,9 @@ model Tenant {
   equipamentos          Equipamento[]
   alocacoesEquipamento  AlocacaoEquipamento[]
   manutencoesPreventivas ManutencaoPreventiva[]
+  documentosObras       DocumentoObra[]
+  fotosObras            FotoObra[]
+  etapasCronograma      EtapaCronograma[]
 
   @@map("tenants")
 }
@@ -65,6 +68,7 @@ model Cliente {
   nome      String
   telefone  String?
   tenantId  String
+  tokenPortal String? @unique
   updatedAt DateTime @updatedAt
   tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   propostas Proposta[]
@@ -118,6 +122,9 @@ model Obra {
   propostaId            String?               @unique
   proposta              Proposta?             @relation(fields: [propostaId], references: [id], onDelete: SetNull)
   alocacoesEquipamento  AlocacaoEquipamento[]
+  documentos            DocumentoObra[]
+  fotos                 FotoObra[]
+  etapasCronograma      EtapaCronograma[]
 
   @@index([tenantId])
   @@map("obras")
@@ -241,7 +248,7 @@ model TransacaoFinanceira {
   dataVencimento    DateTime?
   descricao         String
   id                String               @id @default(uuid())
-  obraId            String
+  obraId            String?
   status            String               @default("PENDENTE")
   tenantId          String
   tipo              String
@@ -266,7 +273,7 @@ model TransacaoFinanceira {
   categoriaFk       CategoriaFinanceira? @relation(fields: [categoriaId], references: [id])
   contaBancaria     ContaBancaria?       @relation(fields: [contaBancariaId], references: [id])
   funcionario       Funcionario?         @relation(fields: [funcionarioId], references: [id])
-  obra              Obra                 @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  obra              Obra?                @relation(fields: [obraId], references: [id], onDelete: Cascade)
   tenant            Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   ordemCompra       OrdemCompra?
 
@@ -477,4 +484,60 @@ model ManutencaoPreventiva {
   @@index([equipamentoId])
   @@index([tenantId])
   @@map("manutencoes_preventivas")
+}
+
+model DocumentoObra {
+  id          String   @id @default(uuid())
+  nome        String
+  tipo        String   // PLANTA, ART, CONTRATO, RECIBO, OUTROS
+  url         String
+  tamanhoBytes Int?
+  obraId      String
+  tenantId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  obra        Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([obraId])
+  @@index([tenantId])
+  @@map("documentos_obra")
+}
+
+model FotoObra {
+  id          String   @id @default(uuid())
+  url         String
+  descricao   String?
+  obraId      String
+  tenantId    String
+  createdAt   DateTime @default(now())
+
+  obra        Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([obraId])
+  @@index([tenantId])
+  @@map("fotos_obra")
+}
+
+model EtapaCronograma {
+  id                  String   @id @default(uuid())
+  nome                String
+  dataInicioEstimada  DateTime
+  dataFimEstimada     DateTime
+  dataFimReal         DateTime?
+  percentualConclusao Decimal  @default(0)
+  custoPrevisto       Decimal  @default(0)
+  obraId              String
+  tenantId            String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  obra                Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([obraId])
+  @@index([tenantId])
+  @@map("etapas_cronograma")
 }
