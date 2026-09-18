@@ -38,6 +38,7 @@ model Tenant {
   documentosObras       DocumentoObra[]
   fotosObras            FotoObra[]
   etapasCronograma      EtapaCronograma[]
+  logsAuditoria         LogAuditoria[]
 
   @@map("tenants")
 }
@@ -54,6 +55,7 @@ model Usuario {
   status      String   @default("PENDENTE")
   telefone    String?  @unique
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  logsAuditoria LogAuditoria[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -540,4 +542,21 @@ model EtapaCronograma {
   @@index([obraId])
   @@index([tenantId])
   @@map("etapas_cronograma")
+}
+
+model LogAuditoria {
+  id        String   @id @default(uuid())
+  usuarioId String
+  acao      String
+  modulo    String
+  detalhes  String?  // JSON stringificado
+  createdAt DateTime @default(now())
+  tenantId  String
+
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@index([tenantId])
+  @@map("logs_auditoria")
 }

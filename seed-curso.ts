@@ -75,7 +75,53 @@ async function main() {
     },
   });
 
-  console.log('Ambiente de Curso Criado com Sucesso!');
+  // 12. Cadastrar Produto, Fornecedor e uma Ordem de Compra
+  const produto = await prisma.produto.create({
+    data: {
+      tenantId: tenant.id,
+      nome: 'Cimento CP II 50kg',
+      unidadeMedida: 'Saco',
+      custoUltimaCompra: 35.0,
+    }
+  });
+
+  const fornecedor = await prisma.fornecedor.create({
+    data: {
+      tenantId: tenant.id,
+      nome: 'Cimentos Votorantim S/A',
+      cnpj: '11.111.111/0001-11'
+    }
+  });
+
+  const obra = await prisma.obra.create({
+    data: {
+      tenantId: tenant.id,
+      nome: 'Residencial Bela Vista',
+    }
+  });
+
+  const ordem = await prisma.ordemCompra.create({
+    data: {
+      tenantId: tenant.id,
+      fornecedorId: fornecedor.id,
+      obraId: obra.id,
+      numero: 'OC-2026-001',
+      valorTotal: 350.0,
+      status: 'PENDENTE',
+      itens: {
+        create: [
+          {
+            tenantId: tenant.id,
+            produtoId: produto.id,
+            quantidade: 10,
+            precoUnitario: 35.0,
+          }
+        ]
+      }
+    }
+  });
+
+  console.log('Seed do curso executado com sucesso!');
   console.log(`Empresa: ${tenant.nome}`);
   console.log(`Email: ${user.email}`);
   console.log(`Senha: ${password}`);

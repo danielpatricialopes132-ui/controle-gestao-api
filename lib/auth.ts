@@ -60,6 +60,35 @@ export async function verifyIdToken(request: Request) {
   };
 }
 
+// Verifica se a role do usuário bate com as requeridas
+export function checkRole(userRole: string, allowedRoles: string[]) {
+  if (userRole === 'MASTER') return true;
+  return allowedRoles.includes(userRole);
+}
+
+// Grava o log de auditoria
+export async function registrarLog(
+  usuarioId: string,
+  tenantId: string,
+  acao: string,
+  modulo: string,
+  detalhes?: any
+) {
+  try {
+    await prisma.logAuditoria.create({
+      data: {
+        usuarioId,
+        tenantId,
+        acao,
+        modulo,
+        detalhes: detalhes ? JSON.stringify(detalhes) : null,
+      }
+    });
+  } catch (err) {
+    console.error('Erro ao gravar log de auditoria:', err);
+  }
+}
+
 import { getStorage } from 'firebase-admin/storage';
 
 export async function uploadToStorage(base64: string, destination: string, mimeType: string): Promise<string> {

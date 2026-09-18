@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyIdToken } from '@/lib/auth';
+import { verifyIdToken, checkRole, registrarLog } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(request: Request) {
@@ -32,6 +32,11 @@ export async function POST(request: Request) {
     const userAuth = await verifyIdToken(request);
 
     const tenantId = userAuth.tenantId;
+
+    if (!checkRole(userAuth.role, ['FINANCEIRO', 'MASTER'])) {
+      return NextResponse.json({ success: false, error: 'Acesso negado: Perfil insuficiente' }, { status: 403 });
+    }
+
     const body = await request.json();
     
     if (!body.descricao || !body.tipo || !body.valor || !body.planoContaId || !body.dataVencimento) {
@@ -55,6 +60,12 @@ export async function POST(request: Request) {
         comprovanteUrl: body.comprovanteUrl || null,
         tenantId: tenantId,
       }
+    });
+
+    await registrarLog(userAuth.dbId, tenantId, 'CRIAR_TRANSACAO', 'FINANCEIRO', {
+      transacaoId: transacao.id,
+      descricao: transacao.descricao,
+      valor: transacao.valor
     });
 
     return NextResponse.json({ success: true, data: transacao });

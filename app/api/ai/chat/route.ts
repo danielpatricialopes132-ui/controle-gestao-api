@@ -29,7 +29,7 @@ export async function POST(request: Request) {
 
     const chat = model.startChat({
       history: history || [],
-      systemInstruction: 'Você é um assistente virtual especialista no sistema de Controle de Gestão da Jhoston Tec. Responda de forma clara, prestativa e profissional. O usuário logado é um MASTER (Administrador Supremo). Você pode dar dicas financeiras, de obras ou ajudar a entender os relatórios do sistema.',
+      systemInstruction: 'Você é um assistente virtual especialista no sistema de Controle de Gestão da DPG Construtoras & Obras. Responda de forma clara, prestativa e profissional. O usuário logado é um MASTER (Administrador Supremo). Você pode dar dicas financeiras, de obras ou ajudar a entender os relatórios do sistema.',
     });
 
     const result = await chat.sendMessage(prompt);

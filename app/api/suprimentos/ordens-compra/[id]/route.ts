@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyIdToken } from "@/lib/auth";
+import { verifyIdToken, checkRole, registrarLog } from "@/lib/auth";
 
 export async function PUT(
   request: Request,
@@ -29,6 +29,10 @@ export async function PUT(
 
     // 1. Regra Financeira: Lançar despesa quando APROVADA
     if (newStatus === "APROVADA" && ordemOriginal.status !== "APROVADA" && !transacaoId) {
+      if (!checkRole(userAuth.role, ['MASTER', 'FINANCEIRO'])) {
+        return NextResponse.json({ success: false, error: 'Acesso negado: Apenas o Financeiro ou Master pode aprovar OC.' }, { status: 403 });
+      }
+
       const novaTransacao = await prisma.transacaoFinanceira.create({
         data: {
           tipo: "DESPESA",
@@ -46,6 +50,10 @@ export async function PUT(
 
     // 2. Regra de Estoque: Dar entrada física quando ENTREGUE
     if (newStatus === "ENTREGUE" && ordemOriginal.status !== "ENTREGUE") {
+      if (!checkRole(userAuth.role, ['MASTER', 'ALMOXARIFE', 'ENGENHARIA'])) {
+        return NextResponse.json({ success: false, error: 'Acesso negado: Apenas Almoxarife ou Engenharia pode confirmar recebimento.' }, { status: 403 });
+      }
+
       // Pega os itens da ordem
       const itensOrdem = await prisma.ordemCompraItem.findMany({
         where: { ordemCompraId: id, tenantId }
@@ -98,7 +106,12 @@ export async function PUT(
       },
     });
 
-    return NextResponse.json(ordem);
+    await registrarLog(userAuth.dbId, tenantId, 'ATUALIZAR_STATUS_OC', 'SUPRIMENTOS', {
+      ordemId: id,
+      novoStatus: newStatus
+    });
+
+    return NextResponse.json({ success: true, data: ordem });
   } catch (error: any) {
     console.error("Erro em PUT ordens-compra/[id]:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

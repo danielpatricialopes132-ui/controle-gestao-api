@@ -90,7 +90,7 @@ export async function POST(req: Request) {
     const obrasText = obras.map(o => `ID: ${o.id} - Nome: ${o.nome}`).join('\n');
     const funcText = funcionarios.map(f => `ID: ${f.id} - Nome: ${f.nome}`).join('\n');
 
-    const systemInstruction = `Você é um assistente inteligente do sistema de gestão JHOSTON TEC. Seu objetivo é ajudar a registrar escalas de trabalho enviadas por encarregados via WhatsApp.
+    const systemInstruction = `Você é um assistente inteligente do sistema de gestão DPG Construtoras & Obras. Seu objetivo é ajudar a registrar escalas de trabalho enviadas por encarregados via WhatsApp.
 
 Obras disponíveis:
 ${obrasText}
