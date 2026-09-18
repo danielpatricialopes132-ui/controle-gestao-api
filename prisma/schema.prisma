@@ -25,6 +25,16 @@ model Tenant {
   registrosPresenca     RegistroPresenca[]
   transacoes            TransacaoFinanceira[]
   usuarios              Usuario[]
+  fornecedores          Fornecedor[]
+  produtos              Produto[]
+  estoques              Estoque[]
+  estoqueItens          EstoqueItem[]
+  ordensCompra          OrdemCompra[]
+  ordemCompraItens      OrdemCompraItem[]
+  propostas             Proposta[]
+  equipamentos          Equipamento[]
+  alocacoesEquipamento  AlocacaoEquipamento[]
+  manutencoesPreventivas ManutencaoPreventiva[]
 
   @@map("tenants")
 }
@@ -56,7 +66,8 @@ model Cliente {
   telefone  String?
   tenantId  String
   updatedAt DateTime @updatedAt
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  propostas Proposta[]
 
   @@unique([tenantId, cpfCnpj])
   @@index([tenantId])
@@ -74,6 +85,9 @@ model Funcionario {
   valorDiariaMotorista Decimal?
   tipoPagamento        String                @default("MENSAL")
   valorDiaria          Decimal?
+  tipoColaborador      String                @default("CLT") // CLT, DIARISTA, EMPREITEIRO
+  cpfCnpj              String?
+  chavePix             String?
   tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   registrosPresenca    RegistroPresenca[]
   transacaoFinanceiras TransacaoFinanceira[]
@@ -99,6 +113,11 @@ model Obra {
   tenant                Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   registrosPresenca     RegistroPresenca[]
   transacoes            TransacaoFinanceira[]
+  estoque               Estoque?
+  ordensCompra          OrdemCompra[]
+  propostaId            String?               @unique
+  proposta              Proposta?             @relation(fields: [propostaId], references: [id], onDelete: SetNull)
+  alocacoesEquipamento  AlocacaoEquipamento[]
 
   @@index([tenantId])
   @@map("obras")
@@ -237,16 +256,225 @@ model TransacaoFinanceira {
   observacao        String?
   contaBancariaId   String?
   comprovanteUrl    String?
+  
+  // Controle de Conciliação e RH
+  isConciliada      Boolean              @default(false)
+  ofxId             String?
+  isAdiantamento    Boolean              @default(false)
+
   adendo            Adendo?              @relation(fields: [adendoId], references: [id])
   categoriaFk       CategoriaFinanceira? @relation(fields: [categoriaId], references: [id])
   contaBancaria     ContaBancaria?       @relation(fields: [contaBancariaId], references: [id])
   funcionario       Funcionario?         @relation(fields: [funcionarioId], references: [id])
   obra              Obra                 @relation(fields: [obraId], references: [id], onDelete: Cascade)
   tenant            Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ordemCompra       OrdemCompra?
 
   @@index([tenantId])
   @@index([obraId])
   @@index([categoriaId])
   @@index([contaBancariaId])
   @@map("transacoes_financeiras")
+}
+
+model Fornecedor {
+  id        String   @id @default(uuid())
+  nome      String
+  cnpj      String?
+  telefone  String?
+  email     String?
+  tenantId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ordens    OrdemCompra[]
+
+  @@index([tenantId])
+  @@map("fornecedores")
+}
+
+model Produto {
+  id            String   @id @default(uuid())
+  nome          String
+  unidadeMedida String   
+  precoBase     Decimal? @default(0)
+  tenantId      String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  estoqueItens  EstoqueItem[]
+  ordemItens    OrdemCompraItem[]
+
+  @@index([tenantId])
+  @@map("produtos")
+}
+
+model Estoque {
+  id        String   @id @default(uuid())
+  nome      String
+  obraId    String?  @unique
+  tenantId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  obra      Obra?    @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  itens     EstoqueItem[]
+
+  @@index([tenantId])
+  @@map("estoques")
+}
+
+model EstoqueItem {
+  id        String   @id @default(uuid())
+  estoqueId String
+  produtoId String
+  quantidade Decimal @default(0)
+  tenantId  String
+  estoque   Estoque  @relation(fields: [estoqueId], references: [id], onDelete: Cascade)
+  produto   Produto  @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([estoqueId, produtoId])
+  @@index([tenantId])
+  @@map("estoque_itens")
+}
+
+model OrdemCompra {
+  id            String   @id @default(uuid())
+  numero        Int      @default(autoincrement())
+  fornecedorId  String
+  obraId        String?
+  status        String   @default("PENDENTE")
+  valorTotal    Decimal  @default(0)
+  dataPrevisao  DateTime?
+  dataEntrega   DateTime?
+  tenantId      String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  transacaoId   String?  @unique
+
+  fornecedor    Fornecedor @relation(fields: [fornecedorId], references: [id])
+  obra          Obra?      @relation(fields: [obraId], references: [id])
+  tenant        Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  transacao     TransacaoFinanceira? @relation(fields: [transacaoId], references: [id])
+  itens         OrdemCompraItem[]
+
+  @@index([tenantId])
+  @@index([obraId])
+  @@map("ordens_compra")
+}
+
+model OrdemCompraItem {
+  id            String   @id @default(uuid())
+  ordemCompraId String
+  produtoId     String
+  quantidade    Decimal
+  precoUnitario Decimal
+  tenantId      String
+
+  ordemCompra   OrdemCompra @relation(fields: [ordemCompraId], references: [id], onDelete: Cascade)
+  produto       Produto     @relation(fields: [produtoId], references: [id])
+  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([ordemCompraId])
+  @@map("ordens_compra_itens")
+}
+
+model Proposta {
+  id           String         @id @default(uuid())
+  titulo       String
+  valorTotal   Decimal        @default(0)
+  validadeDias Int            @default(15)
+  status       String         @default("RASCUNHO") // RASCUNHO, ENVIADA, APROVADA, REJEITADA
+  termos       String?
+  nfUrl        String?        // URL/caminho da nota fiscal anexada pelo usuário
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  
+  clienteId    String
+  tenantId     String
+
+  cliente      Cliente        @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  itens        PropostaItem[]
+  obra         Obra?
+
+  @@index([tenantId])
+  @@index([clienteId])
+  @@map("propostas")
+}
+
+model PropostaItem {
+  id            String   @id @default(uuid())
+  descricao     String
+  quantidade    Decimal  @default(1)
+  valorUnitario Decimal  @default(0)
+  valorTotal    Decimal  @default(0)
+
+  propostaId    String
+  proposta      Proposta @relation(fields: [propostaId], references: [id], onDelete: Cascade)
+
+  @@index([propostaId])
+  @@map("proposta_itens")
+}
+
+model Equipamento {
+  id             String   @id @default(uuid())
+  identificador  String   // Placa ou ID interno
+  marca          String?
+  modelo         String?
+  ano            Int?
+  custoDiario    Decimal  @default(0)
+  status         String   @default("DISPONIVEL") // DISPONIVEL, ALOCADO, MANUTENCAO
+  tenantId       String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  alocacoes      AlocacaoEquipamento[]
+  manutencoes    ManutencaoPreventiva[]
+
+  @@index([tenantId])
+  @@map("equipamentos")
+}
+
+model AlocacaoEquipamento {
+  id                String   @id @default(uuid())
+  equipamentoId     String
+  obraId            String
+  dataInicio        DateTime
+  dataFim           DateTime?
+  custoTotalGerado  Decimal  @default(0)
+  tenantId          String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  equipamento       Equipamento @relation(fields: [equipamentoId], references: [id], onDelete: Cascade)
+  obra              Obra        @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  tenant            Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([equipamentoId])
+  @@index([obraId])
+  @@index([tenantId])
+  @@map("alocacoes_equipamento")
+}
+
+model ManutencaoPreventiva {
+  id                String   @id @default(uuid())
+  equipamentoId     String
+  dataProgramada    DateTime
+  descricao         String
+  custoEstimado     Decimal  @default(0)
+  status            String   @default("PENDENTE") // PENDENTE, CONCLUIDA, ATRASADA
+  tenantId          String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  equipamento       Equipamento @relation(fields: [equipamentoId], references: [id], onDelete: Cascade)
+  tenant            Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([equipamentoId])
+  @@index([tenantId])
+  @@map("manutencoes_preventivas")
 }
