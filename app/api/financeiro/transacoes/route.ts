@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const transacoes = await prisma.transacaoFinanceira.findMany({
       where: { tenantId },
       include: {
-        categoriaFk: { select: { descricao: true, nome: true } },
+        categoriaFk: { select: { descricao: true } },
         obra: { select: { nome: true } },
         contaBancaria: { select: { nome: true } }
       },

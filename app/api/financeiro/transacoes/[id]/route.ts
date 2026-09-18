@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyIdToken } from '@/lib/auth';
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const userAuth = await verifyIdToken(req);
     const tenantId = userAuth.tenantId;
+    const { id } = await params;
     const body = await req.json();
 
     const { 
@@ -24,7 +25,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
     const transacao = await prisma.transacaoFinanceira.updateMany({
       where: {
-        id: params.id,
+        id: id,
         tenantId,
       },
       data: {
@@ -54,14 +55,15 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const userAuth = await verifyIdToken(req);
     const tenantId = userAuth.tenantId;
+    const { id } = await params;
 
     const transacao = await prisma.transacaoFinanceira.deleteMany({
       where: {
-        id: params.id,
+        id: id,
         tenantId,
       },
     });

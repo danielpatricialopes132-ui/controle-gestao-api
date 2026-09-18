@@ -1,5 +1,3 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,81 +9,72 @@ datasource db {
 }
 
 model Tenant {
-  id        String   @id @default(uuid())
-  nome      String
-  documento String?  @unique // CNPJ ou CPF do dono do Tenant
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relacionamentos
-  usuarios              Usuario[]
+  createdAt             DateTime              @default(now())
+  documento             String?               @unique
+  id                    String                @id @default(uuid())
+  nome                  String
+  updatedAt             DateTime              @updatedAt
+  adendos               Adendo[]
+  categoriasFinanceiras CategoriaFinanceira[]
   clientes              Cliente[]
-  obras                 Obra[]
-  funcionarios          Funcionario[]
-  registrosPresenca     RegistroPresenca[]
+  contasBancarias       ContaBancaria[]
   contatos              Contato[]
   contratos             Contrato[]
-  adendos               Adendo[]
+  funcionarios          Funcionario[]
+  obras                 Obra[]
+  registrosPresenca     RegistroPresenca[]
   transacoes            TransacaoFinanceira[]
-  categoriasFinanceiras CategoriaFinanceira[]
-  contasBancarias       ContaBancaria[]
+  usuarios              Usuario[]
 
   @@map("tenants")
 }
 
 model Usuario {
-  id          String   @id @default(uuid())
-  firebaseUid String   @unique // UID gerado pelo Firebase Auth
-  nome        String
-  email       String
-  role        String   @default("USER") // MASTER, ADMIN, USER, etc
-  status      String   @default("PENDENTE") // PENDENTE, ATIVO, BLOQUEADO
-  telefone    String?  @unique // WhatsApp number for Evolution API
   createdAt   DateTime @default(now())
+  email       String
+  firebaseUid String   @unique
+  id          String   @id @default(uuid())
+  nome        String
+  role        String   @default("USER")
+  tenantId    String
   updatedAt   DateTime @updatedAt
+  status      String   @default("PENDENTE")
+  telefone    String?  @unique
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  // Multi-tenant
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  @@unique([tenantId, email]) // Impede emails duplicados DENTRO do mesmo tenant
+  @@unique([tenantId, email])
   @@index([tenantId])
   @@map("usuarios")
 }
 
 model Cliente {
+  cpfCnpj   String?
+  createdAt DateTime @default(now())
+  email     String?
   id        String   @id @default(uuid())
   nome      String
-  cpfCnpj   String?
-  email     String?
   telefone  String?
-  createdAt DateTime @default(now())
+  tenantId  String
   updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  // Multi-tenant
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  @@unique([tenantId, cpfCnpj]) // O mesmo CPF/CNPJ pode ser cliente de tenants diferentes, mas não duplicado no mesmo tenant
+  @@unique([tenantId, cpfCnpj])
   @@index([tenantId])
   @@map("clientes")
 }
 
 model Funcionario {
-  id                   String   @id @default(uuid())
-  nome                 String
   cargo                String
-  tipoPagamento        String   @default("MENSAL") // MENSAL, DIARISTA
+  createdAt            DateTime              @default(now())
+  id                   String                @id @default(uuid())
+  nome                 String
   salario              Decimal?
-  valorDiaria          Decimal?
+  tenantId             String
+  updatedAt            DateTime              @updatedAt
   valorDiariaMotorista Decimal?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-
-  // Multi-tenant
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
+  tipoPagamento        String                @default("MENSAL")
+  valorDiaria          Decimal?
+  tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   registrosPresenca    RegistroPresenca[]
   transacaoFinanceiras TransacaoFinanceira[]
 
@@ -94,53 +83,43 @@ model Funcionario {
 }
 
 model Obra {
-  id       String  @id @default(uuid())
-  nome     String
-  status   String  @default("EM_ANDAMENTO") // EM_ANDAMENTO, CONCLUIDA, CANCELADA
-  endereco String?
-
-  // Fases de Medição (0 a 100)
-  progressoEscavacao    Int @default(0)
-  progressoAlvenaria    Int @default(0)
-  progressoHidraulica   Int @default(0)
-  progressoRevestimento Int @default(0)
-  progressoEntrega      Int @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Multi-tenant
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  registrosPresenca RegistroPresenca[]
-  contrato          Contrato?
-  transacoes        TransacaoFinanceira[]
+  createdAt             DateTime              @default(now())
+  endereco              String?
+  id                    String                @id @default(uuid())
+  nome                  String
+  status                String                @default("EM_ANDAMENTO")
+  tenantId              String
+  updatedAt             DateTime              @updatedAt
+  progressoAlvenaria    Int                   @default(0)
+  progressoEntrega      Int                   @default(0)
+  progressoEscavacao    Int                   @default(0)
+  progressoHidraulica   Int                   @default(0)
+  progressoRevestimento Int                   @default(0)
+  contrato              Contrato?
+  tenant                Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  registrosPresenca     RegistroPresenca[]
+  transacoes            TransacaoFinanceira[]
 
   @@index([tenantId])
   @@map("obras")
 }
 
 model RegistroPresenca {
-  id               String   @id @default(uuid())
+  createdAt        DateTime    @default(now())
   data             DateTime
-  status           String // TRABALHO, VIAGEM, CHUVA, FALTA
-  horasTrabalhadas Decimal? @default(8)
-  percentualPago   Decimal? @default(100)
+  funcionarioId    String
+  id               String      @id @default(uuid())
+  obraId           String
   observacao       String?
-  statusAprovacao  String   @default("PENDENTE") // PENDENTE, APROVADO, REJEITADO
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  funcionarioId String
-  funcionario   Funcionario @relation(fields: [funcionarioId], references: [id], onDelete: Cascade)
-
-  obraId String
-  obra   Obra   @relation(fields: [obraId], references: [id], onDelete: Cascade)
-
-  // Multi-tenant
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  status           String
+  tenantId         String
+  updatedAt        DateTime    @updatedAt
+  horasTrabalhadas Decimal?    @default(8)
+  percentualPago   Decimal?    @default(100)
+  statusAprovacao  String      @default("PENDENTE")
+  funcionario      Funcionario @relation(fields: [funcionarioId], references: [id], onDelete: Cascade)
+  obra             Obra        @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  tenant           Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([obraId])
@@ -149,19 +128,17 @@ model RegistroPresenca {
 }
 
 model Contato {
+  createdAt     DateTime @default(now())
+  email         String?
+  especialidade String?
   id            String   @id @default(uuid())
   nome          String
-  tipo          String // FORNECEDOR, TERCEIRIZADO, CLIENTE
-  especialidade String? // Gesso, Elétrica, etc.
   telefone      String?
-  email         String?
-  documento     String? // CPF/CNPJ
-  createdAt     DateTime @default(now())
+  tenantId      String
   updatedAt     DateTime @updatedAt
-
-  // Multi-tenant
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  documento     String?
+  tipo          String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@map("contatos")
@@ -173,36 +150,29 @@ model Contrato {
   valor      Decimal
   dataInicio DateTime?
   dataFim    DateTime?
-  status     String    @default("ATIVO") // ATIVO, CONCLUIDO, CANCELADO
+  status     String    @default("ATIVO")
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
-
-  obraId String @unique // 1 Contrato Principal por Obra
-  obra   Obra   @relation(fields: [obraId], references: [id], onDelete: Cascade)
-
-  adendos Adendo[]
-
-  // Multi-tenant
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  obraId     String    @unique
+  tenantId   String
+  adendos    Adendo[]
+  obra       Obra      @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@map("contratos")
 }
 
 model Adendo {
-  id             String    @id @default(uuid())
-  descricao      String
-  valor          Decimal
-  dataAssinatura DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-
-  contratoId String
-  contrato   Contrato @relation(fields: [contratoId], references: [id], onDelete: Cascade)
-
-  // Multi-tenant
+  id                   String                @id @default(uuid())
+  descricao            String
+  valor                Decimal
+  dataAssinatura       DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  contratoId           String
   tenantId             String
+  contrato             Contrato              @relation(fields: [contratoId], references: [id], onDelete: Cascade)
   tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   transacaoFinanceiras TransacaoFinanceira[]
 
@@ -212,18 +182,15 @@ model Adendo {
 }
 
 model CategoriaFinanceira {
-  id        String   @id @default(uuid())
-  codigo    String // ex: 1.0.0, 1.1.0, 2.1.0
-  descricao String
-  tipo      String // RECEITA, DESPESA
-  isAtiva   Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Multi-tenant
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
+  id         String                @id @default(uuid())
+  codigo     String
+  descricao  String
+  tipo       String
+  isAtiva    Boolean               @default(true)
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+  tenantId   String
+  tenant     Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   transacoes TransacaoFinanceira[]
 
   @@unique([tenantId, codigo])
@@ -232,71 +199,50 @@ model CategoriaFinanceira {
 }
 
 model ContaBancaria {
-  id        String   @id @default(uuid())
-  nome      String   // Ex: Banco do Brasil, Itaú, Caixa Físico
-  banco     String?  // Código do banco (opcional)
-  agencia   String?
-  conta     String?
-  saldoInicial Decimal @default(0)
-  isAtiva   Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Multi-tenant
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  transacoes TransacaoFinanceira[]
+  id           String                @id @default(uuid())
+  nome         String
+  banco        String?
+  agencia      String?
+  conta        String?
+  saldoInicial Decimal               @default(0)
+  isAtiva      Boolean               @default(true)
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  tenantId     String
+  tenant       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  transacoes   TransacaoFinanceira[]
 
   @@index([tenantId])
   @@map("contas_bancarias")
 }
 
 model TransacaoFinanceira {
-  id   String @id @default(uuid())
-  tipo String // RECEITA, DESPESA
-
-  // Suporte ao plano de contas
-  categoriaId String?
-  categoriaFk CategoriaFinanceira? @relation(fields: [categoriaId], references: [id])
-
-  // Legado (mantido para compatibilidade com os dados atuais)
-  categoria String? // PESSOAL, FORNECEDOR, MATERIAL, ADENDO, CONTRATO_PRINCIPAL
-
-  descricao      String
-  valor          Decimal
-  dataVencimento DateTime?
-  dataPagamento  DateTime?
-  
-  // Novos campos para Contas a Pagar
-  codigoBarras   String?
-  observacao     String?
-
-  status         String    @default("PENDENTE") // PENDENTE, PAGO, CANCELADO
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-
-  obraId String
-  obra   Obra   @relation(fields: [obraId], references: [id], onDelete: Cascade)
-
-  // Novas chaves para suportar o Relatório Gerencial e Folha de Salários
-  adendoId String?
-  adendo   Adendo? @relation(fields: [adendoId], references: [id])
-
-  funcionarioId String?
-  funcionario   Funcionario? @relation(fields: [funcionarioId], references: [id])
-
-  clienteFornecedor String? // Nome legível para quem pagou/recebeu se não for funcionário
-
-  comprovanteUrl    String? // Link do comprovante armazenado
-
-  // Relacionamento com Conta Bancária / Caixa
-  contaBancariaId String?
-  contaBancaria   ContaBancaria? @relation(fields: [contaBancariaId], references: [id])
-
-  // Multi-tenant
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt         DateTime             @default(now())
+  dataPagamento     DateTime?
+  dataVencimento    DateTime?
+  descricao         String
+  id                String               @id @default(uuid())
+  obraId            String
+  status            String               @default("PENDENTE")
+  tenantId          String
+  tipo              String
+  updatedAt         DateTime             @updatedAt
+  valor             Decimal
+  categoria         String?
+  categoriaId       String?
+  adendoId          String?
+  clienteFornecedor String?
+  funcionarioId     String?
+  codigoBarras      String?
+  observacao        String?
+  contaBancariaId   String?
+  comprovanteUrl    String?
+  adendo            Adendo?              @relation(fields: [adendoId], references: [id])
+  categoriaFk       CategoriaFinanceira? @relation(fields: [categoriaId], references: [id])
+  contaBancaria     ContaBancaria?       @relation(fields: [contaBancariaId], references: [id])
+  funcionario       Funcionario?         @relation(fields: [funcionarioId], references: [id])
+  obra              Obra                 @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  tenant            Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([obraId])

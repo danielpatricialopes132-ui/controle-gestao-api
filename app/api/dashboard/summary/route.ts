@@ -40,6 +40,7 @@ export async function GET(request: Request) {
       prisma.funcionario.count({ where: { tenantId } }),
       prisma.transacaoFinanceira.findMany({ 
         where: { tenantId },
+        include: { categoriaFk: { select: { codigo: true } } },
         orderBy: { createdAt: 'desc' }
       }),
       prisma.obra.findMany({
@@ -69,6 +70,11 @@ export async function GET(request: Request) {
 
     for (const t of transacoes) {
       const val = Number(t.valor);
+      
+      // Conta especial 0.2.0: Ignorada do livro caixa geral e dashboard
+      if (t.categoriaFk?.codigo === '0.2.0') {
+        continue;
+      }
       
       if (t.status === 'PAGO') {
         if (t.tipo === 'RECEITA') receitasPagas += val;

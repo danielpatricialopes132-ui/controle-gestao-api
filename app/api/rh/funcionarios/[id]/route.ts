@@ -2,34 +2,42 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyIdToken } from '@/lib/auth';
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const userAuth = await verifyIdToken(req);
     if (!userAuth) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
+    const { id } = await params;
     const tenantId = userAuth.tenantId;
     const body = await req.json();
 
     const { 
       nome,
-      funcao,
-      tipoPagamento,
-      valorPadrao
+      cargo,
+      salario,
+      valorDiariaMotorista
     } = body;
+
+    const dataToUpdate: any = {};
+    if (nome !== undefined) dataToUpdate.nome = nome;
+    if (cargo !== undefined) dataToUpdate.cargo = cargo;
+    
+    // Se o frontend enviar, nós atualizamos (inclusive para null)
+    if (salario !== undefined) {
+      dataToUpdate.salario = salario ? Number(salario) : null;
+    }
+    if (valorDiariaMotorista !== undefined) {
+      dataToUpdate.valorDiariaMotorista = valorDiariaMotorista ? Number(valorDiariaMotorista) : null;
+    }
 
     const funcionario = await prisma.funcionario.updateMany({
       where: {
-        id: params.id,
+        id: id,
         tenantId,
       },
-      data: {
-        nome,
-        funcao,
-        tipoPagamento,
-        valorPadrao: valorPadrao ? Number(valorPadrao) : undefined,
-      },
+      data: dataToUpdate,
     });
 
     if (funcionario.count === 0) {
@@ -43,18 +51,19 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const userAuth = await verifyIdToken(req);
     if (!userAuth) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
+    const { id } = await params;
     const tenantId = userAuth.tenantId;
 
     const funcionario = await prisma.funcionario.deleteMany({
       where: {
-        id: params.id,
+        id: id,
         tenantId,
       },
     });
