@@ -39,6 +39,7 @@ model Tenant {
   fotosObras            FotoObra[]
   etapasCronograma      EtapaCronograma[]
   logsAuditoria         LogAuditoria[]
+  notasFiscais          NotaFiscal[]
 
   @@map("tenants")
 }
@@ -72,8 +73,9 @@ model Cliente {
   tenantId  String
   tokenPortal String? @unique
   updatedAt DateTime @updatedAt
-  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   propostas Proposta[]
+  notasFiscais NotaFiscal[]
 
   @@unique([tenantId, cpfCnpj])
   @@index([tenantId])
@@ -127,6 +129,7 @@ model Obra {
   documentos            DocumentoObra[]
   fotos                 FotoObra[]
   etapasCronograma      EtapaCronograma[]
+  notasFiscais          NotaFiscal[]
 
   @@index([tenantId])
   @@map("obras")
@@ -559,4 +562,27 @@ model LogAuditoria {
   @@index([usuarioId])
   @@index([tenantId])
   @@map("logs_auditoria")
+}
+
+model NotaFiscal {
+  id        String   @id @default(uuid())
+  numero    String?
+  obraId    String
+  clienteId String
+  valor     Decimal  @default(0)
+  status    String   @default("PROCESSANDO") // PROCESSANDO, AUTORIZADA, REJEITADA
+  xmlUrl    String?
+  pdfUrl    String?
+  tenantId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  obra      Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  cliente   Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([obraId])
+  @@index([clienteId])
+  @@index([tenantId])
+  @@map("notas_fiscais")
 }

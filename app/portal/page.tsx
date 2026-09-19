@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export default function PortalCliente() {
+function PortalClienteContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
 
@@ -145,5 +145,13 @@ export default function PortalCliente() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function PortalCliente() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Carregando portal...</div>}>
+      <PortalClienteContent />
+    </Suspense>
   );
 }
