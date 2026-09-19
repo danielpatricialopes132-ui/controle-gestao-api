@@ -1,15 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { verifyIdToken } from '@/lib/auth';
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const tenantId = searchParams.get('tenantId');
-    const tipo = searchParams.get('tipo');
+    const userAuth = await verifyIdToken(request);
+    const tenantId = userAuth.tenantId;
 
-    if (!tenantId) {
-      return NextResponse.json({ error: 'tenantId é obrigatório' }, { status: 400 });
-    }
+    const { searchParams } = new URL(request.url);
+    const tipo = searchParams.get('tipo');
 
     const filter: any = { tenantId };
     if (tipo) {
@@ -23,17 +22,20 @@ export async function GET(request: Request) {
 
     return NextResponse.json(funcionarios);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 401 });
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const data = await request.json();
-    const { tenantId, nome, cargo, tipoColaborador, cpfCnpj, chavePix, salario, valorDiaria, valorDiariaMotorista, tipoPagamento } = data;
+    const userAuth = await verifyIdToken(request);
+    const tenantId = userAuth.tenantId;
 
-    if (!tenantId || !nome || !cargo) {
-      return NextResponse.json({ error: 'tenantId, nome e cargo são obrigatórios' }, { status: 400 });
+    const data = await request.json();
+    const { nome, cargo, tipoColaborador, cpfCnpj, chavePix, salario, valorDiaria, valorDiariaMotorista, tipoPagamento } = data;
+
+    if (!nome || !cargo) {
+      return NextResponse.json({ error: 'nome e cargo são obrigatórios' }, { status: 400 });
     }
 
     const novoFuncionario = await prisma.funcionario.create({
@@ -53,6 +55,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, data: novoFuncionario }, { status: 201 });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 401 });
   }
 }

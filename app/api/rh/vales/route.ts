@@ -1,15 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { verifyIdToken } from '@/lib/auth';
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const tenantId = searchParams.get('tenantId');
-    const funcionarioId = searchParams.get('funcionarioId');
+    const userAuth = await verifyIdToken(request);
+    const tenantId = userAuth.tenantId;
 
-    if (!tenantId) {
-      return NextResponse.json({ error: 'tenantId é obrigatório' }, { status: 400 });
-    }
+    const { searchParams } = new URL(request.url);
+    const funcionarioId = searchParams.get('funcionarioId');
 
     const filter: any = { tenantId, isAdiantamento: true };
     if (funcionarioId) {
@@ -27,16 +26,19 @@ export async function GET(request: Request) {
 
     return NextResponse.json(vales);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 401 });
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const data = await request.json();
-    const { tenantId, funcionarioId, obraId, valor, descricao, dataVencimento } = data;
+    const userAuth = await verifyIdToken(request);
+    const tenantId = userAuth.tenantId;
 
-    if (!tenantId || !funcionarioId || !obraId || !valor) {
+    const data = await request.json();
+    const { funcionarioId, obraId, valor, descricao, dataVencimento } = data;
+
+    if (!funcionarioId || !obraId || !valor) {
       return NextResponse.json({ error: 'Dados incompletos para o vale' }, { status: 400 });
     }
 
@@ -60,6 +62,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, data: vale }, { status: 201 });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 401 });
   }
 }
