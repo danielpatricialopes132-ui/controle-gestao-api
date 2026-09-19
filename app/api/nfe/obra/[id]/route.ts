@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkUser } from "@/lib/checkUser";
+import { verifyIdToken } from "@/lib/auth";
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
-    const auth = await checkUser(req);
+    const auth = await verifyIdToken(req);
     if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const notas = await prisma.notaFiscal.findMany({
