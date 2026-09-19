@@ -55,6 +55,7 @@ model Usuario {
   updatedAt   DateTime @updatedAt
   status      String   @default("PENDENTE")
   telefone    String?  @unique
+  fcmTokens   String[] @default([])
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   logsAuditoria LogAuditoria[]
 

@@ -18,6 +18,7 @@
     "firebase-admin": "^14.4.0",
     "lucide-react": "^1.46.0",
     "next": "16.3.5",
+    "node-cron": "^4.6.0",
     "node-ofx-parser": "^0.5.1",
     "pg": "^8.23.0",
     "prisma": "^6.0.0",
@@ -27,6 +28,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/node-cron": "^3.0.11",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

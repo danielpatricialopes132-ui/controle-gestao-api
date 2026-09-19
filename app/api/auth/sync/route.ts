@@ -49,6 +49,18 @@ export async function GET(request: Request) {
           tenantId: testeTenant.id
         }
       });
+
+      try {
+        const { sendPushToRole } = await import('@/lib/fcm');
+        await sendPushToRole(
+          testeTenant.id, 
+          'MASTER', 
+          'Novo Usuário Pendente', 
+          `O usuário ${usuario.nome} se cadastrou e aguarda aprovação.`
+        );
+      } catch (pushErr) {
+        console.error('Erro ao enviar push notification:', pushErr);
+      }
     }
 
     return NextResponse.json({ 
