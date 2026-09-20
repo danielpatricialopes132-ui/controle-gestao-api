@@ -49,6 +49,9 @@ model Tenant {
   terceirosCliente      TerceiroCliente[]
   punchListItens        PunchListItem[]
   visitasTerceiroCliente VisitaTerceiroCliente[]
+  autorizacoesPortaria   AutorizacaoAcessoPortaria[]
+  termosRecebimento      TermoRecebimentoInteriores[]
+  termosRetirada         TermoRetiradaItem[]
 
   @@map("tenants")
 }
@@ -148,6 +151,9 @@ model Obra {
   terceiros             TerceiroCliente[]
   punchList             PunchListItem[]
   visitasTerceiros      VisitaTerceiroCliente[]
+  autorizacoesPortaria  AutorizacaoAcessoPortaria[]
+  termosRecebimento     TermoRecebimentoInteriores[]
+  termosRetirada        TermoRetiradaItem[]
 
   @@index([tenantId])
   @@map("obras")
@@ -759,6 +765,8 @@ model TerceiroCliente {
   tenant             Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   punchList          PunchListItem[]
   visitas            VisitaTerceiroCliente[]
+  autorizacoesPortaria AutorizacaoAcessoPortaria[]
+  termosRetirada     TermoRetiradaItem[]
 
   @@index([obraId])
   @@index([tenantId])
@@ -811,5 +819,94 @@ model VisitaTerceiroCliente {
   @@index([dataVisita])
   @@map("visitas_terceiro_cliente")
 }
+
+model AutorizacaoAcessoPortaria {
+  id                String           @id @default(uuid())
+  tenantId          String
+  obraId            String
+  terceiroClienteId String?
+  tipoAcesso        String           @default("TERCEIRO_CLIENTE") // TERCEIRO_CLIENTE, EMPREITEIRO, PRESTADOR_SERVICO
+  empresaNome       String
+  veiculoPlaca      String?
+  veiculoModelo     String?
+  dataInicio        DateTime
+  dataFim           DateTime
+  horarioPermitido  String?          // Ex: "08:00 às 17:00"
+  colaboradores     Json             // Array: [{ nome, rg, cpf, funcao }]
+  regrasCondominio  String?          @db.Text
+  status            String           @default("AUTORIZADO") // AUTORIZADO, EXPIRADO, CANCELADO
+  observacoes       String?          @db.Text
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  obra              Obra             @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  tenant            Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  terceiro          TerceiroCliente? @relation(fields: [terceiroClienteId], references: [id], onDelete: SetNull)
+
+  @@index([obraId])
+  @@index([tenantId])
+  @@index([terceiroClienteId])
+  @@map("autorizacoes_acesso_portaria")
+}
+
+model TermoRecebimentoInteriores {
+  id                       String    @id @default(uuid())
+  tenantId                 String
+  obraId                   String
+  numeroTermo              String    // Ex: "REC-2026-001"
+  dataEmissao              DateTime  @default(now())
+  statusPunchList          String    @default("TODOS_RESOLVIDOS") // TODOS_RESOLVIDOS, COM_RESSALVAS_MENORES
+  totalItensVistoriados    Int       @default(0)
+  totalItensResolvidos     Int       @default(0)
+  detalhesAmbientes        Json?     // Snapshot dos ambientes e inspeções
+  ressalvasObservacoes     String?   @db.Text
+  nomeCliente              String
+  documentoCliente         String?   // CPF / RG
+  assinaturaDigitalCliente String?   @db.Text // Base64 PNG do traço
+  dataAssinatura           DateTime?
+  responsavelTecnico       String?
+  status                   String    @default("ASSINADO") // RASCUNHO, ASSINADO
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  obra                     Obra      @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  tenant                   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([obraId])
+  @@index([tenantId])
+  @@map("termos_recebimento_interiores")
+}
+
+model TermoRetiradaItem {
+  id                               String           @id @default(uuid())
+  tenantId                         String
+  obraId                           String
+  terceiroClienteId                String?
+  numeroTermo                      String           // Ex: "RET-2026-001"
+  dataRetirada                     DateTime         @default(now())
+  previsaoDevolucao                DateTime?
+  dataDevolucaoReal                DateTime?
+  empresaRetirante                 String
+  nomeResponsavelRetirada          String
+  documentoResponsavel             String?          // RG / CPF
+  itensRetirados                   Json             // Array [{ item, quantidade, unidade, estadoConservacao, observacao }]
+  motivoRetirada                   String           // USINAGEM_BANCADA, CORTE_AJUSTE, PINTURA_OFICINA, TESTE, OUTROS
+  assinaturaDigitalRetirante       String?          @db.Text // Base64 PNG
+  assinaturaDigitalResponsavelObra String?          @db.Text // Base64 PNG
+  status                           String           @default("RETIRADO") // RETIRADO, DEVOLVIDO_PARCIAL, DEVOLVIDO_TOTAL, CANCELADO
+  observacoes                      String?          @db.Text
+  createdAt                        DateTime         @default(now())
+  updatedAt                        DateTime         @updatedAt
+
+  obra                             Obra             @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  tenant                           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  terceiro                         TerceiroCliente? @relation(fields: [terceiroClienteId], references: [id], onDelete: SetNull)
+
+  @@index([obraId])
+  @@index([tenantId])
+  @@index([terceiroClienteId])
+  @@map("termos_retirada_itens")
+}
+
 
 
