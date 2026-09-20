@@ -46,10 +46,15 @@ MÓDULOS E REGRAS DE NEGÓCIO DO SISTEMA:
 - Cautela de Retirada de Materiais: Controle de peças que saem da obra para usinagem em oficina (ex: cubas retiradas por marmorarias), com previsão de retorno e assinaturas digitais na tela do retirante e do encarregado.
 - Termo de Recebimento de Interiores: Coleta da assinatura digital do cliente final na tela após auditoria do Punch List, emitindo certidão PDF de entrega formal.
 
-7. AUDITORIA IMUTÁVEL (LOGS):
+7. PORTAL DO MONTADOR, INTEGRAÇÃO WHATSAPP & VISTORIAS ANTES/DEPOIS (FASE 7):
+- Portal Público do Terceiro / Montador: Acesso sem login via token seguro compartilhado por WhatsApp (/portal/terceiro?token=...). Permite ao montador consultar seu crachá digital de portaria com regras do condomínio, conferir pendências de montagem (Punch List) e enviar fotos de conclusão direto da câmera do smartphone para o sistema e Revista da Obra.
+- Notificações Automáticas via WhatsApp: Disparo com 1 clique de autorizações de portaria (com link do portal) e termos de cautela de materiais para os gestores de marmorarias e marcenarias.
+- Vistoria com Slider Antes & Depois: Ferramenta visual interativa para inspecionar fotos antes da intervenção versus após a montagem concluída com cortina deslizante.
+
+8. AUDITORIA IMUTÁVEL (LOGS):
 - Rastreabilidade ponta a ponta: Mostra Quem (usuário), O Quê (ação/tabela/id), Quando (timestamp) e os dados anteriores e atuais em formato JSON para auditoria financeira e de compras.
 
-8. MULTI-TENANT E CUSTOMIZAÇÃO:
+9. MULTI-TENANT E CUSTOMIZAÇÃO:
 - Cadastro de empresas isoladas, upload de logomarca própria e plano de contas / categorias financeiras personalizadas por tenant.
 
 POSTURA DE RESPOSTA:
