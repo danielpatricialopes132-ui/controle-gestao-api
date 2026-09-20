@@ -48,6 +48,7 @@ model Tenant {
   revistasObra          RevistaObra[]
   terceirosCliente      TerceiroCliente[]
   punchListItens        PunchListItem[]
+  visitasTerceiroCliente VisitaTerceiroCliente[]
 
   @@map("tenants")
 }
@@ -146,6 +147,7 @@ model Obra {
   revistas              RevistaObra[]
   terceiros             TerceiroCliente[]
   punchList             PunchListItem[]
+  visitasTerceiros      VisitaTerceiroCliente[]
 
   @@index([tenantId])
   @@map("obras")
@@ -722,6 +724,7 @@ model RevistaObra {
   climaDiasChuva     Int      @default(0)
   percentualAvanco   Decimal  @default(0)
   fotosSelecionadas  Json?    // Array [{ url, legenda, ambiente, tag, antesDepois }]
+  mapaVisitas        Json?    // Mapa semanal S-T-Q-Q-S-S-D consolidado dos terceiros
   pdfUrl             String?
   status             String   @default("RASCUNHO") // RASCUNHO, PUBLICADA
   createdAt          DateTime @default(now())
@@ -755,6 +758,7 @@ model TerceiroCliente {
   obra               Obra            @relation(fields: [obraId], references: [id], onDelete: Cascade)
   tenant             Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   punchList          PunchListItem[]
+  visitas            VisitaTerceiroCliente[]
 
   @@index([obraId])
   @@index([tenantId])
@@ -783,6 +787,29 @@ model PunchListItem {
   @@index([tenantId])
   @@index([terceiroClienteId])
   @@map("punch_list_itens")
+}
+
+model VisitaTerceiroCliente {
+  id                String          @id @default(uuid())
+  tenantId          String
+  obraId            String
+  terceiroClienteId String
+  dataVisita        DateTime
+  motivo            String?         // MEDICAO, MONTAGEM, VISTORIA, ALINHAMENTO, OUTROS
+  observacoes       String?         @db.Text
+  responsavel       String?         // Nome do técnico/responsável presente
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  terceiro          TerceiroCliente @relation(fields: [terceiroClienteId], references: [id], onDelete: Cascade)
+  obra              Obra            @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  tenant            Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([terceiroClienteId])
+  @@index([obraId])
+  @@index([tenantId])
+  @@index([dataVisita])
+  @@map("visitas_terceiro_cliente")
 }
 
 

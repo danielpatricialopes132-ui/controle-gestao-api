@@ -141,6 +141,37 @@ export async function POST(
       }));
     }
 
+    // 4. Agregação do Mapa Semanal de Visitas dos Terceiros do Cliente (S, T, Q, Q, S, S, D)
+    const terceirosComVisitas = await prisma.terceiroCliente.findMany({
+      where: { obraId, tenantId: userAuth.tenantId },
+      include: {
+        visitas: {
+          where: { dataVisita: { gte: dtInicio, lte: dtFim } },
+          orderBy: { dataVisita: 'asc' },
+        },
+      },
+      orderBy: { nomeEmpresa: 'asc' },
+    });
+
+    const mapaVisitas = terceirosComVisitas.map((t) => ({
+      terceiroId: t.id,
+      nomeEmpresa: t.nomeEmpresa,
+      especialidade: t.especialidade,
+      statusCiclo: t.status,
+      responsavel: t.responsavel,
+      telefone: t.telefone,
+      dias: {
+        seg: t.visitas.filter((v) => new Date(v.dataVisita).getDay() === 1).map((v) => ({ motivo: v.motivo, responsavel: v.responsavel })),
+        ter: t.visitas.filter((v) => new Date(v.dataVisita).getDay() === 2).map((v) => ({ motivo: v.motivo, responsavel: v.responsavel })),
+        qua: t.visitas.filter((v) => new Date(v.dataVisita).getDay() === 3).map((v) => ({ motivo: v.motivo, responsavel: v.responsavel })),
+        qui: t.visitas.filter((v) => new Date(v.dataVisita).getDay() === 4).map((v) => ({ motivo: v.motivo, responsavel: v.responsavel })),
+        sex: t.visitas.filter((v) => new Date(v.dataVisita).getDay() === 5).map((v) => ({ motivo: v.motivo, responsavel: v.responsavel })),
+        sab: t.visitas.filter((v) => new Date(v.dataVisita).getDay() === 6).map((v) => ({ motivo: v.motivo, responsavel: v.responsavel })),
+        dom: t.visitas.filter((v) => new Date(v.dataVisita).getDay() === 0).map((v) => ({ motivo: v.motivo, responsavel: v.responsavel })),
+      },
+      totalVisitas: t.visitas.length,
+    }));
+
     const novaRevista = await prisma.revistaObra.create({
       data: {
         tenantId: userAuth.tenantId,
@@ -158,6 +189,7 @@ export async function POST(
         climaDiasChuva,
         percentualAvanco,
         fotosSelecionadas: fotosCompiladas,
+        mapaVisitas,
         status: 'PUBLICADA',
       },
     });
