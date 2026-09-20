@@ -14,6 +14,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const dateStr = searchParams.get('data'); // Opcional, filtra pelo dia
     const obraId = searchParams.get('obraId'); // Opcional, filtra pela obra
+    const fornecedorId = searchParams.get('fornecedorId'); // Opcional, filtra pelo empreiteiro/subcontratado
 
     const where: any = { tenantId };
     
@@ -31,11 +32,27 @@ export async function GET(request: Request) {
     if (obraId) {
       where.obraId = obraId;
     }
+    if (fornecedorId) {
+      where.funcionario = {
+        OR: [
+          { fornecedorId: fornecedorId },
+          { fornecedor: { empreiteiroPaiId: fornecedorId } }
+        ]
+      };
+    }
 
     const presencas = await prisma.registroPresenca.findMany({
       where,
       include: {
-        funcionario: true,
+        funcionario: {
+          include: {
+            fornecedor: {
+              include: {
+                empreiteiroPai: true
+              }
+            }
+          }
+        },
         obra: true
       },
       orderBy: { data: 'desc' }

@@ -129,16 +129,32 @@ export async function DELETE(
     const tenantId = userAuth.tenantId;
     const { id } = await params;
 
-    const ordem = await prisma.ordemCompra.deleteMany({
+    const ordemExistente = await prisma.ordemCompra.findFirst({
       where: {
         id,
         tenantId,
       },
+      include: {
+        fornecedor: true,
+      }
     });
 
-    if (ordem.count === 0) {
+    if (!ordemExistente) {
       return NextResponse.json({ error: "Ordem de Compra não encontrada" }, { status: 404 });
     }
+
+    await prisma.ordemCompra.delete({
+      where: {
+        id,
+      },
+    });
+
+    await registrarLog(userAuth.dbId, tenantId, 'EXCLUIR_ORDEM_COMPRA', 'SUPRIMENTOS', {
+      ordemId: id,
+      numero: ordemExistente.numero,
+      valorTotal: ordemExistente.valorTotal,
+      fornecedor: ordemExistente.fornecedor?.nome,
+    });
 
     return NextResponse.json({ message: "Excluída com sucesso" });
   } catch (error: any) {

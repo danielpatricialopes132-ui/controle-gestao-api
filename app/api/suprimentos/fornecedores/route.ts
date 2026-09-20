@@ -9,8 +9,31 @@ export async function GET(request: Request) {
 
     const tenantId = userAuth.tenantId;
 
+    const { searchParams } = new URL(request.url);
+    const tipo = searchParams.get('tipo'); // MATERIAL, EMPREITEIRO, SUBCONTRATADO, etc.
+
+    const where: any = { tenantId };
+    if (tipo) {
+      where.tipoFornecedor = tipo;
+    }
+
     const fornecedores = await prisma.fornecedor.findMany({
-      where: { tenantId },
+      where,
+      include: {
+        empreiteiroPai: {
+          select: { id: true, nome: true, cnpj: true },
+        },
+        subcontratados: {
+          select: { id: true, nome: true, cnpj: true, tipoFornecedor: true },
+        },
+        _count: {
+          select: {
+            contratosEmpreiteiro: true,
+            funcionarios: true,
+            ordens: true,
+          }
+        }
+      },
       orderBy: { nome: "asc" },
     });
 
@@ -35,8 +58,27 @@ export async function POST(request: Request) {
         cnpj: data.cnpj,
         telefone: data.telefone,
         email: data.email,
+        tipoFornecedor: data.tipoFornecedor || "MATERIAL",
+        empreiteiroPaiId: data.empreiteiroPaiId || null,
+        chavePix: data.chavePix || null,
+        banco: data.banco || null,
+        agencia: data.agencia || null,
+        conta: data.conta || null,
+        cndInssValidade: data.cndInssValidade ? new Date(data.cndInssValidade) : null,
+        cndTrabalhistaValidade: data.cndTrabalhistaValidade ? new Date(data.cndTrabalhistaValidade) : null,
         tenantId,
       },
+      include: {
+        empreiteiroPai: true,
+      }
+    });
+
+    const { registrarLog } = await import('@/lib/auth');
+    await registrarLog(userAuth.dbId, tenantId, 'CRIAR_FORNECEDOR', 'SUPRIMENTOS', {
+      fornecedorId: novoFornecedor.id,
+      nome: novoFornecedor.nome,
+      tipoFornecedor: novoFornecedor.tipoFornecedor,
+      empreiteiroPaiId: novoFornecedor.empreiteiroPaiId,
     });
 
     return NextResponse.json(novoFornecedor, { status: 201 });

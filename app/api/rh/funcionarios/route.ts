@@ -9,14 +9,25 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const tipo = searchParams.get('tipo');
+    const fornecedorId = searchParams.get('fornecedorId');
 
     const filter: any = { tenantId };
     if (tipo) {
       filter.tipoColaborador = tipo;
     }
+    if (fornecedorId) {
+      filter.fornecedorId = fornecedorId;
+    }
 
     const funcionarios = await prisma.funcionario.findMany({
       where: filter,
+      include: {
+        fornecedor: {
+          include: {
+            empreiteiroPai: true,
+          }
+        }
+      },
       orderBy: { nome: 'asc' },
     });
 
@@ -32,7 +43,7 @@ export async function POST(request: Request) {
     const tenantId = userAuth.tenantId;
 
     const data = await request.json();
-    const { nome, cargo, tipoColaborador, cpfCnpj, chavePix, salario, valorDiaria, valorDiariaMotorista, tipoPagamento } = data;
+    const { nome, cargo, tipoColaborador, cpfCnpj, chavePix, salario, valorDiaria, valorDiariaMotorista, tipoPagamento, fornecedorId } = data;
 
     if (!nome || !cargo) {
       return NextResponse.json({ error: 'nome e cargo são obrigatórios' }, { status: 400 });
@@ -50,7 +61,11 @@ export async function POST(request: Request) {
         valorDiaria: valorDiaria ? parseFloat(valorDiaria) : null,
         valorDiariaMotorista: valorDiariaMotorista ? parseFloat(valorDiariaMotorista) : null,
         tipoPagamento: tipoPagamento || 'MENSAL',
+        fornecedorId: fornecedorId || null,
       },
+      include: {
+        fornecedor: true,
+      }
     });
 
     return NextResponse.json({ success: true, data: novoFuncionario }, { status: 201 });

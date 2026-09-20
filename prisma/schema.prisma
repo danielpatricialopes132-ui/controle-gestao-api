@@ -13,6 +13,8 @@ model Tenant {
   documento             String?               @unique
   id                    String                @id @default(uuid())
   nome                  String
+  logoUrl               String?
+  corPrimaria           String?
   updatedAt             DateTime              @updatedAt
   adendos               Adendo[]
   categoriasFinanceiras CategoriaFinanceira[]
@@ -40,6 +42,12 @@ model Tenant {
   etapasCronograma      EtapaCronograma[]
   logsAuditoria         LogAuditoria[]
   notasFiscais          NotaFiscal[]
+  contratosEmpreiteiro  ContratoEmpreiteiro[]
+  adendosEmpreiteiro    AdendoContratoEmpreiteiro[]
+  medicoesEmpreiteiro   MedicaoEmpreiteiro[]
+  revistasObra          RevistaObra[]
+  terceirosCliente      TerceiroCliente[]
+  punchListItens        PunchListItem[]
 
   @@map("tenants")
 }
@@ -97,11 +105,14 @@ model Funcionario {
   tipoColaborador      String                @default("CLT") // CLT, DIARISTA, EMPREITEIRO
   cpfCnpj              String?
   chavePix             String?
+  fornecedorId         String?
+  fornecedor           Fornecedor?           @relation(fields: [fornecedorId], references: [id], onDelete: SetNull)
   tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   registrosPresenca    RegistroPresenca[]
   transacaoFinanceiras TransacaoFinanceira[]
 
   @@index([tenantId])
+  @@index([fornecedorId])
   @@map("funcionarios")
 }
 
@@ -131,6 +142,10 @@ model Obra {
   fotos                 FotoObra[]
   etapasCronograma      EtapaCronograma[]
   notasFiscais          NotaFiscal[]
+  contratosEmpreiteiro  ContratoEmpreiteiro[]
+  revistas              RevistaObra[]
+  terceiros             TerceiroCliente[]
+  punchList             PunchListItem[]
 
   @@index([tenantId])
   @@map("obras")
@@ -282,6 +297,8 @@ model TransacaoFinanceira {
   obra              Obra?                @relation(fields: [obraId], references: [id], onDelete: Cascade)
   tenant            Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   ordemCompra       OrdemCompra?
+  medicaoEmpreiteiroId String?             @unique
+  medicaoEmpreiteiro   MedicaoEmpreiteiro? @relation(fields: [medicaoEmpreiteiroId], references: [id])
 
   @@index([tenantId])
   @@index([obraId])
@@ -291,18 +308,32 @@ model TransacaoFinanceira {
 }
 
 model Fornecedor {
-  id        String   @id @default(uuid())
-  nome      String
-  cnpj      String?
-  telefone  String?
-  email     String?
-  tenantId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  ordens    OrdemCompra[]
+  id                     String                @id @default(uuid())
+  nome                   String
+  cnpj                   String?
+  telefone               String?
+  email                  String?
+  tipoFornecedor         String                @default("MATERIAL") // MATERIAL, EMPREITEIRO, SUBCONTRATADO, SERVICO
+  empreiteiroPaiId       String?
+  chavePix               String?
+  banco                  String?
+  agencia                String?
+  conta                  String?
+  cndInssValidade        DateTime?
+  cndTrabalhistaValidade DateTime?
+  tenantId               String
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+
+  empreiteiroPai         Fornecedor?           @relation("Subcontratados", fields: [empreiteiroPaiId], references: [id], onDelete: SetNull)
+  subcontratados         Fornecedor[]          @relation("Subcontratados")
+  tenant                 Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ordens                 OrdemCompra[]
+  contratosEmpreiteiro   ContratoEmpreiteiro[]
+  funcionarios           Funcionario[]
 
   @@index([tenantId])
+  @@index([empreiteiroPaiId])
   @@map("fornecedores")
 }
 
@@ -587,3 +618,171 @@ model NotaFiscal {
   @@index([tenantId])
   @@map("notas_fiscais")
 }
+
+model ContratoEmpreiteiro {
+  id                   String                      @id @default(uuid())
+  numero               String?
+  descricao            String
+  valorOriginal        Decimal                     @default(0)
+  dataInicio           DateTime?
+  dataFim              DateTime?
+  status               String                      @default("ATIVO") // ATIVO, CONCLUIDO, RESCINDIDO, SUSPENSO
+  aliquotaInss         Decimal                     @default(11.0)
+  aliquotaIss          Decimal                     @default(5.0)
+  aliquotaIrrf         Decimal                     @default(0.0)
+  documentoContratoUrl String?
+  observacoes          String?
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+
+  obraId               String
+  fornecedorId         String
+  tenantId             String
+
+  obra                 Obra                        @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  fornecedor           Fornecedor                  @relation(fields: [fornecedorId], references: [id], onDelete: Cascade)
+  tenant               Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  adendos              AdendoContratoEmpreiteiro[]
+  medicoes             MedicaoEmpreiteiro[]
+
+  @@index([tenantId])
+  @@index([obraId])
+  @@index([fornecedorId])
+  @@map("contratos_empreiteiro")
+}
+
+model AdendoContratoEmpreiteiro {
+  id                    String              @id @default(uuid())
+  contratoEmpreiteiroId String
+  numero                Int                 @default(1)
+  descricao             String
+  tipo                  String              @default("VALOR_E_PRAZO") // VALOR, PRAZO, ESCOPO, VALOR_E_PRAZO
+  valorAdicional        Decimal             @default(0)
+  novaDataFim           DateTime?
+  dataAssinatura        DateTime?
+  documentoUrl          String?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  tenantId              String
+
+  contratoEmpreiteiro   ContratoEmpreiteiro @relation(fields: [contratoEmpreiteiroId], references: [id], onDelete: Cascade)
+  tenant                Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([contratoEmpreiteiroId])
+  @@index([tenantId])
+  @@map("adendos_contrato_empreiteiro")
+}
+
+model MedicaoEmpreiteiro {
+  id                            String              @id @default(uuid())
+  numero                        Int                 @default(1)
+  contratoEmpreiteiroId         String
+  dataMedicao                   DateTime            @default(now())
+  periodoInicio                 DateTime?
+  periodoFim                    DateTime?
+  descricao                     String
+  valorBruto                    Decimal             @default(0)
+  valorInssRetido               Decimal             @default(0)
+  valorIssRetido                Decimal             @default(0)
+  valorIrrfRetido               Decimal             @default(0)
+  valorDeducaoSubcontratados    Decimal             @default(0)
+  valorAdiantamentosDescontados Decimal             @default(0)
+  valorLiquidoAPagar            Decimal             @default(0)
+  status                        String              @default("PENDENTE") // PENDENTE, APROVADA, PAGA, GLOSADA
+  relatorioFotograficoUrl       String?
+  notaFiscalUrl                 String?
+  observacoes                   String?
+  createdAt                     DateTime            @default(now())
+  updatedAt                     DateTime            @updatedAt
+  tenantId                      String
+
+  contratoEmpreiteiro           ContratoEmpreiteiro @relation(fields: [contratoEmpreiteiroId], references: [id], onDelete: Cascade)
+  tenant                        Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  transacao                     TransacaoFinanceira?
+
+  @@index([contratoEmpreiteiroId])
+  @@index([tenantId])
+  @@map("medicoes_empreiteiro")
+}
+
+model RevistaObra {
+  id                 String   @id @default(uuid())
+  tenantId           String
+  obraId             String
+  tipoPeriodicidade  String   @default("MENSAL") // "SEMANAL" ou "MENSAL"
+  titulo             String
+  periodoReferencia  String   // Ex: "2026-09" ou "Semana 38/2026"
+  dataInicio         DateTime
+  dataFim            DateTime
+  capaUrl            String?
+  editorial          String?  @db.Text
+  destaques          String?  @db.Text
+  lookahead          String?  @db.Text
+  climaDiasSol       Int      @default(0)
+  climaDiasChuva     Int      @default(0)
+  percentualAvanco   Decimal  @default(0)
+  fotosSelecionadas  Json?    // Array [{ url, legenda, ambiente, tag, antesDepois }]
+  pdfUrl             String?
+  status             String   @default("RASCUNHO") // RASCUNHO, PUBLICADA
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  obra               Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  tenant             Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([obraId])
+  @@index([tenantId])
+  @@map("revistas_obra")
+}
+
+model TerceiroCliente {
+  id                 String          @id @default(uuid())
+  tenantId           String
+  obraId             String
+  nomeEmpresa        String
+  especialidade      String          // MARCENARIA, MARMORARIA, AUTOMACAO, CLIMATIZACAO, ESQUADRIAS, DECORACAO, OUTROS
+  responsavel        String?
+  telefone           String?
+  email              String?
+  valorContrato      Decimal?        @default(0)
+  status             String          @default("CONTRATADO") // CONTRATADO, MEDICAO_IN_LOCO, FABRICACAO, PRONTO_ENTREGA, MONTAGEM, ENTREGUE_APROVADO
+  dataPrevisaoInicio DateTime?
+  dataPrevisaoFim    DateTime?
+  observacoes        String?         @db.Text
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  obra               Obra            @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  tenant             Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  punchList          PunchListItem[]
+
+  @@index([obraId])
+  @@index([tenantId])
+  @@map("terceiros_cliente")
+}
+
+model PunchListItem {
+  id                String           @id @default(uuid())
+  tenantId          String
+  obraId            String
+  terceiroClienteId String?
+  ambiente          String
+  descricao         String           @db.Text
+  fotoUrl           String?
+  status            String           @default("PENDENTE") // PENDENTE, EM_CORRECAO, RESOLVIDO
+  prazoCorrecao     DateTime?
+  dataResolucao     DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  obra              Obra             @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  tenant            Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  terceiro          TerceiroCliente? @relation(fields: [terceiroClienteId], references: [id], onDelete: SetNull)
+
+  @@index([obraId])
+  @@index([tenantId])
+  @@index([terceiroClienteId])
+  @@map("punch_list_itens")
+}
+
+

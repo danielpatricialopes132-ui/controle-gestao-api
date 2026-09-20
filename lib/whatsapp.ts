@@ -62,6 +62,11 @@ export async function sendWhatsAppText({ number, text, delay = 1200 }: SendTextO
   } catch (error) { throw error; }
 }
 
+export async function sendWhatsAppMessage(number: string, text: string) {
+  return sendWhatsAppText({ number, text });
+}
+
+
 export async function sendWhatsAppFile({ number, base64, fileName, caption = '', mimetype = 'application/pdf', delay = 1500 }: SendFileOptions) {
   try {
     const formattedNumber = formatNumber(number);
