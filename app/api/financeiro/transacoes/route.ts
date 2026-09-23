@@ -8,9 +8,16 @@ export async function GET(request: Request) {
     const userAuth = await verifyIdToken(request);
 
     const tenantId = userAuth.tenantId;
+    const url = new URL(request.url);
+    const statusAprovacao = url.searchParams.get('statusAprovacao');
+
+    const whereClause: any = { tenantId };
+    if (statusAprovacao) {
+      whereClause.statusAprovacao = statusAprovacao;
+    }
 
     const transacoes = await prisma.transacaoFinanceira.findMany({
-      where: { tenantId },
+      where: whereClause,
       include: {
         categoriaFk: { select: { descricao: true } },
         obra: { select: { nome: true } },

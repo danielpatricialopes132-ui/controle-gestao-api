@@ -304,6 +304,7 @@ model TransacaoFinanceira {
   isConciliada      Boolean              @default(false)
   ofxId             String?
   isAdiantamento    Boolean              @default(false)
+  statusAprovacao   String               @default("APROVADO") // PENDENTE, APROVADO, REJEITADO
 
   adendo            Adendo?              @relation(fields: [adendoId], references: [id])
   categoriaFk       CategoriaFinanceira? @relation(fields: [categoriaId], references: [id])
