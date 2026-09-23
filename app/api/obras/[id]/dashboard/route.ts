@@ -1,110 +1,90 @@
 import { NextResponse } from 'next/server';
-import { verifyIdToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { verifyIdToken } from '@/lib/auth';
 
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
-    const decodedToken = await verifyIdToken(request);
-    
-    // Obtém o usuário para descobrir o tenantId principal
-    const usuario = await prisma.usuario.findUnique({
-      where: { firebaseUid: decodedToken.uid },
-    });
-
-    if (!usuario) {
-      return NextResponse.json({ success: false, error: 'Usuário não encontrado no banco' }, { status: 404 });
+    const userAuth = await verifyIdToken(request);
+    if (!userAuth) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
 
-    // Lógica Master/Tenant
-    let targetTenantId = decodedToken.tenantId;
+    const { id } = params;
 
-    const { id: obraId } = params;
-
-    // Verificar se a obra existe e pertence ao tenant
     const obra = await prisma.obra.findFirst({
-      where: { id: obraId, tenantId: targetTenantId },
+      where: {
+        id: id,
+        tenantId: userAuth.tenantId,
+      },
       include: {
-        contrato: {
-          include: {
-            adendos: true,
-          }
-        },
-        transacoes: true,
+        etapasCronograma: true,
       }
     });
 
     if (!obra) {
-      return NextResponse.json({ success: false, error: 'Obra não encontrada' }, { status: 404 });
+      return NextResponse.json({ error: 'Obra não encontrada' }, { status: 404 });
     }
 
-    // Calcula os totais
-    let valorContratoPrincipal = obra.contrato?.valor.toNumber() ?? 0;
-    let valorAdendos = obra.contrato?.adendos.reduce((acc: number, curr: any) => acc + curr.valor.toNumber(), 0) ?? 0;
-    let totalReceitas = valorContratoPrincipal + valorAdendos; // O que a empresa tem a receber
-
-    let despesasPagas = 0;
-    let despesasPendentes = 0;
-
-    // Transações financeiras (fornecedores, materiais, etc)
-    for (const tx of obra.transacoes) {
-      if (tx.tipo === 'DESPESA') {
-        if (tx.status === 'PAGO') {
-          despesasPagas += tx.valor.toNumber();
-        } else if (tx.status === 'PENDENTE') {
-          despesasPendentes += tx.valor.toNumber();
-        }
+    const transacoes = await prisma.transacaoFinanceira.findMany({
+      where: {
+        obraId: id,
+        tenantId: userAuth.tenantId,
+        status: 'PAGO'
+      },
+      include: {
+        categoriaFk: true,
       }
-    }
-
-    // Calcula gastos com salários/diárias de motoristas (aproximação via RegistroPresenca)
-    // Para simplificar no dashboard inicial, somaremos isso como uma despesa separada
-    const presencas = await prisma.registroPresenca.findMany({
-      where: { obraId, tenantId: targetTenantId, status: { in: ['PRESENTE', 'MEIO_DIA'] } },
-      include: { funcionario: true }
     });
 
-    let custoMaoDeObra = 0;
-    for (const p of presencas) {
-      if (p.funcionario.valorDiariaMotorista) {
-        let fator = p.status === 'PRESENTE' ? 1 : 0.5;
-        custoMaoDeObra += p.funcionario.valorDiariaMotorista.toNumber() * fator;
+    let totalReceitas = 0;
+    let totalDespesas = 0;
+    const despesasPorCategoria: Record<string, number> = {};
+
+    transacoes.forEach(t => {
+      const valor = Number(t.valor);
+      const categoria = t.categoriaFk?.descricao ?? t.categoria ?? 'Outros';
+
+      if (t.tipo === 'RECEITA') {
+        totalReceitas += valor;
+      } else {
+        totalDespesas += valor;
+        despesasPorCategoria[categoria] = (despesasPorCategoria[categoria] || 0) + valor;
       }
+    });
+
+    const lucro = totalReceitas - totalDespesas;
+    
+    // Calcula orçado se tiver
+    let totalOrcado = 0;
+    if (obra.etapasCronograma) {
+      totalOrcado = obra.etapasCronograma.reduce((acc, curr) => acc + (Number(curr.custoPrevisto) || 0), 0);
     }
 
-    despesasPagas += custoMaoDeObra; // Assumindo que a mão de obra diária é custo real
-
-    const lucroPresumido = totalReceitas - (despesasPagas + despesasPendentes);
+    const formatDetalhe = (obj: Record<string, number>) => {
+      return Object.entries(obj)
+        .map(([categoria, valor]) => ({ categoria, valor }))
+        .sort((a, b) => b.valor - a.valor);
+    };
 
     return NextResponse.json({
-      success: true,
-      data: {
-        obra: {
-          id: obra.id,
-          nome: obra.nome,
-          status: obra.status,
-        },
-        dashboard: {
-          receitas: {
-            contratoPrincipal: valorContratoPrincipal,
-            adendos: valorAdendos,
-            total: totalReceitas,
-          },
-          despesas: {
-            pagas: despesasPagas,
-            pendentes: despesasPendentes,
-            maoDeObra: custoMaoDeObra,
-            total: despesasPagas + despesasPendentes,
-          },
-          lucroPresumido,
-        }
-      }
+      obra: {
+        id: obra.id,
+        nome: obra.nome,
+        status: obra.status,
+      },
+      financeiro: {
+        totalReceitas,
+        totalDespesas,
+        lucro,
+        margemLucro: totalReceitas > 0 ? (lucro / totalReceitas) * 100 : 0,
+        totalOrcado,
+        percentualCustoOrcamento: totalOrcado > 0 ? (totalDespesas / totalOrcado) * 100 : 0,
+      },
+      despesasPorCategoria: formatDetalhe(despesasPorCategoria),
     });
 
-  } catch (error) {
-    console.error('Erro em GET /api/obras/[id]/dashboard:', error);
-    return NextResponse.json({ success: false, error: 'Erro interno' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Erro ao carregar dashboard da obra:', error);
+    return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
   }
 }

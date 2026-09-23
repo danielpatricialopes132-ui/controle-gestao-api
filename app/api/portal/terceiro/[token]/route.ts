@@ -28,7 +28,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
             id: true,
             nome: true,
             logoUrl: true,
-            telefone: true,
           },
         },
         autorizacoesPortaria: {
@@ -68,7 +67,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
       empresa: {
         nome: terceiro.tenant.nome,
         logoUrl: terceiro.tenant.logoUrl,
-        telefone: terceiro.tenant.telefone,
       },
       autorizacoesPortaria: terceiro.autorizacoesPortaria,
       punchList: terceiro.punchList,

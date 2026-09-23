@@ -52,6 +52,8 @@ model Tenant {
   autorizacoesPortaria   AutorizacaoAcessoPortaria[]
   termosRecebimento      TermoRecebimentoInteriores[]
   termosRetirada         TermoRetiradaItem[]
+  vistorias360           Vistoria360[]
+  bimModels              BimModel[]
 
   @@map("tenants")
 }
@@ -89,6 +91,7 @@ model Cliente {
   tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   propostas Proposta[]
   notasFiscais NotaFiscal[]
+  obras Obra[]
 
   @@unique([tenantId, cpfCnpj])
   @@index([tenantId])
@@ -141,6 +144,8 @@ model Obra {
   ordensCompra          OrdemCompra[]
   propostaId            String?               @unique
   proposta              Proposta?             @relation(fields: [propostaId], references: [id], onDelete: SetNull)
+  clienteId             String?
+  cliente               Cliente?              @relation(fields: [clienteId], references: [id], onDelete: SetNull)
   alocacoesEquipamento  AlocacaoEquipamento[]
   documentos            DocumentoObra[]
   fotos                 FotoObra[]
@@ -154,6 +159,8 @@ model Obra {
   autorizacoesPortaria  AutorizacaoAcessoPortaria[]
   termosRecebimento     TermoRecebimentoInteriores[]
   termosRetirada        TermoRetiradaItem[]
+  vistorias360          Vistoria360[]
+  bimModels             BimModel[]
 
   @@index([tenantId])
   @@map("obras")
@@ -753,6 +760,7 @@ model TerceiroCliente {
   responsavel        String?
   telefone           String?
   email              String?
+  fotoBiometria      String?         // URL da foto para reconhecimento facial
   valorContrato      Decimal?        @default(0)
   status             String          @default("CONTRATADO") // CONTRATADO, MEDICAO_IN_LOCO, FABRICACAO, PRONTO_ENTREGA, MONTAGEM, ENTREGUE_APROVADO
   dataPrevisaoInicio DateTime?
@@ -909,4 +917,42 @@ model TermoRetiradaItem {
 }
 
 
+
+
+model Vistoria360 {
+  id          String   @id @default(uuid())
+  tenantId    String
+  obraId      String
+  ambiente    String
+  fotoUrl     String
+  dataVistoria DateTime @default(now())
+  observacoes String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  obra        Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([obraId])
+  @@index([tenantId])
+  @@map("vistorias_360")
+}
+
+model BimModel {
+  id          String   @id @default(uuid())
+  tenantId    String
+  obraId      String
+  nome        String
+  ifcUrl      String
+  tamanhoBytes Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  obra        Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([obraId])
+  @@index([tenantId])
+  @@map("bim_models")
+}
 

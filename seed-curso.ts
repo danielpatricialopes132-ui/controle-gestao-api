@@ -61,23 +61,24 @@ async function main() {
 
   // 2. Criar Categorias Financeiras Padrão
   const categoriasPadrao = [
-    { nome: 'Alvenaria e Estrutura', tipo: 'DESPESA' },
-    { nome: 'Instalações Hidráulicas e Elétricas', tipo: 'DESPESA' },
-    { nome: 'Empreiteiros e Terceirizados', tipo: 'DESPESA' },
-    { nome: 'Medições de Obras', tipo: 'DESPESA' },
-    { nome: 'Compras de Insumos', tipo: 'DESPESA' },
-    { nome: 'Recebimento de Clientes / Medição', tipo: 'RECEITA' },
+    { codigo: 'ALV-ESTR', descricao: 'Alvenaria e Estrutura', tipo: 'DESPESA' },
+    { codigo: 'INST-HIDR-ELET', descricao: 'Instalações Hidráulicas e Elétricas', tipo: 'DESPESA' },
+    { codigo: 'EMPR-TERC', descricao: 'Empreiteiros e Terceirizados', tipo: 'DESPESA' },
+    { codigo: 'MED-OBRAS', descricao: 'Medições de Obras', tipo: 'DESPESA' },
+    { codigo: 'COMP-INSUMOS', descricao: 'Compras de Insumos', tipo: 'DESPESA' },
+    { codigo: 'REC-CLI-MED', descricao: 'Recebimento de Clientes / Medição', tipo: 'RECEITA' },
   ];
 
   for (const cat of categoriasPadrao) {
     const existe = await prisma.categoriaFinanceira.findFirst({
-      where: { tenantId: tenant.id, nome: cat.nome },
+      where: { tenantId: tenant.id, codigo: cat.codigo },
     });
     if (!existe) {
       await prisma.categoriaFinanceira.create({
         data: {
           tenantId: tenant.id,
-          nome: cat.nome,
+          codigo: cat.codigo,
+          descricao: cat.descricao,
           tipo: cat.tipo,
         },
       });
@@ -111,9 +112,18 @@ async function main() {
       nome: 'Residencial Bela Vista - Torre Alpha',
       endereco: 'Av. Paulista, 1000 - São Paulo/SP',
       status: 'EM_ANDAMENTO',
-      orcamentoTotal: 2500000.0,
+    }
+  });
+
+  await prisma.contrato.create({
+    data: {
+      tenantId: tenant.id,
+      obraId: obra.id,
+      descricao: 'Contrato Geral da Obra - Residencial Bela Vista',
+      valor: 2500000.0,
       dataInicio: new Date('2026-01-10'),
-      dataPrevisaoFim: new Date('2026-12-20'),
+      dataFim: new Date('2026-12-20'),
+      status: 'ATIVO',
     }
   });
 
@@ -122,7 +132,6 @@ async function main() {
     data: {
       tenantId: tenant.id,
       nome: 'Votorantim Cimentos S/A',
-      nomeRazao: 'Votorantim Cimentos Brasil S/A',
       cnpj: '01.838.723/0001-27',
       tipoFornecedor: 'MATERIAL',
       telefone: '(11) 3003-7000',
@@ -133,7 +142,6 @@ async function main() {
     data: {
       tenantId: tenant.id,
       nome: 'Alfa Estruturas & Edificações Ltda',
-      nomeRazao: 'Alfa Estruturas & Edificações Ltda - ME',
       cnpj: '12.345.678/0001-90',
       tipoFornecedor: 'EMPREITEIRO',
       telefone: '(11) 98765-4321',
@@ -148,7 +156,6 @@ async function main() {
     data: {
       tenantId: tenant.id,
       nome: 'Beta Instalações Hidráulicas Eireli',
-      nomeRazao: 'Beta Instalações Hidráulicas & Gás Eireli',
       cnpj: '98.765.432/0001-10',
       tipoFornecedor: 'SUBCONTRATADO',
       empreiteiroPaiId: empPrincipal.id,
@@ -228,27 +235,28 @@ async function main() {
       tenantId: tenant.id,
       fornecedorId: empPrincipal.id,
       obraId: obra.id,
-      numeroContrato: 'CT-001/2026',
-      objeto: 'Execução de estrutura de concreto armado e alvenaria de vedação',
+      numero: 'CT-001/2026',
+      descricao: 'Execução de estrutura de concreto armado e alvenaria de vedação',
       valorOriginal: 120000.0,
       dataInicio: new Date('2026-02-01'),
-      dataPrevisaoTermino: new Date('2026-07-30'),
+      dataFim: new Date('2026-07-30'),
       status: 'ATIVO',
-      retencaoInss: 11.0,
-      retencaoIss: 5.0,
-      retencaoIrrf: 1.5,
+      aliquotaInss: 11.0,
+      aliquotaIss: 5.0,
+      aliquotaIrrf: 1.5,
     }
   });
 
   // Adendo de R$ 15.000,00 por aumento de área técnica
   await prisma.adendoContratoEmpreiteiro.create({
     data: {
-      contratoId: contrato.id,
-      numeroAdendo: 'Termo Aditivo 01',
-      tipoAdendo: 'VALOR',
+      tenantId: tenant.id,
+      contratoEmpreiteiroId: contrato.id,
+      numero: 1,
+      tipo: 'VALOR',
       descricao: 'Acréscimo de laje de reservatório superior e barrilete',
-      valorAcrescimo: 15000.0,
-      dataAdendo: new Date('2026-03-01'),
+      valorAdicional: 15000.0,
+      dataAssinatura: new Date('2026-03-01'),
     }
   });
 
@@ -264,18 +272,20 @@ async function main() {
 
   const medicao = await prisma.medicaoEmpreiteiro.create({
     data: {
-      contratoId: contrato.id,
-      numeroMedicao: 1,
+      tenantId: tenant.id,
+      contratoEmpreiteiroId: contrato.id,
+      numero: 1,
+      descricao: 'Medição da laje do 2º pavimento',
       dataMedicao: new Date('2026-03-15'),
       periodoInicio: new Date('2026-02-01'),
       periodoFim: new Date('2026-02-28'),
       valorBruto: valorBrutoMedicao,
       valorDeducaoSubcontratados: deducaoSub,
-      valorDeducaoAdiantamento: 0.0,
-      valorInss: inssCalculado,
-      valorIss: issCalculado,
-      valorIrrf: irrfCalculado,
-      valorLiquido: valorLiquido,
+      valorAdiantamentosDescontados: 0.0,
+      valorInssRetido: inssCalculado,
+      valorIssRetido: issCalculado,
+      valorIrrfRetido: irrfCalculado,
+      valorLiquidoAPagar: valorLiquido,
       status: 'APROVADA',
       observacoes: 'Medição da laje do 2º pavimento com dedução da NF 450 do subcontratado Beta Hidráulica',
     }
@@ -286,13 +296,12 @@ async function main() {
     data: {
       tenantId: tenant.id,
       obraId: obra.id,
-      descricao: `Pagamento Medição #1 - Contrato ${contrato.numeroContrato} - Alfa Estruturas`,
+      descricao: `Pagamento Medição #1 - Contrato ${contrato.numero} - Alfa Estruturas`,
       valor: valorLiquido,
       tipo: 'DESPESA',
       status: 'PENDENTE',
       categoria: 'Empreiteiros e Terceirizados',
       dataVencimento: new Date('2026-03-30'),
-      dataCompetencia: new Date('2026-03-15'),
       medicaoEmpreiteiroId: medicao.id,
     }
   });
@@ -303,7 +312,7 @@ async function main() {
       tenantId: tenant.id,
       nome: 'Cimento CP II-E-32 50kg',
       unidadeMedida: 'Saco',
-      custoUltimaCompra: 34.50,
+      precoBase: 34.50,
     }
   });
 
@@ -313,7 +322,7 @@ async function main() {
       tenantId: tenant.id,
       fornecedorId: fornMaterial.id,
       obraId: obra.id,
-      numero: 'OC-2026-001',
+      numero: 1,
       valorTotal: 1600.0,
       status: 'ENTREGUE',
       dataEntrega: new Date('2026-02-10'),
@@ -336,7 +345,7 @@ async function main() {
       tenantId: tenant.id,
       fornecedorId: fornMaterial.id,
       obraId: obra.id,
-      numero: 'OC-2026-002',
+      numero: 2,
       valorTotal: 3450.0,
       status: 'ENTREGUE',
       dataEntrega: new Date('2026-03-05'),
@@ -358,7 +367,7 @@ async function main() {
   console.log(`Obra Criada: ${obra.nome}`);
   console.log(`Empreiteiro Principal: ${empPrincipal.nome}`);
   console.log(`Subcontratado: ${subcontratado.nome}`);
-  console.log(`Contrato: ${contrato.numeroContrato} (Valor Atualizado: R$ 135.000,00)`);
+  console.log(`Contrato: ${contrato.numero} (Valor Atualizado: R$ 135.000,00)`);
   console.log(`Medição #1: R$ ${valorBrutoMedicao} Bruto | R$ ${valorLiquido} Líquido (Dedução Sub: R$ ${deducaoSub})`);
   console.log(`Credenciais de Acesso:`);
   console.log(`E-mail: ${user.email}`);
