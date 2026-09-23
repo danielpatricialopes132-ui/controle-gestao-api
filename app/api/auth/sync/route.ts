@@ -39,27 +39,40 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Empresa padrão não encontrada' }, { status: 500 });
       }
 
+      // Verifica se o e-mail pertence a um Cliente cadastrado
+      const clienteExistente = await prisma.cliente.findFirst({
+        where: { 
+          email: decodedToken.email,
+          tenantId: testeTenant.id // Assumindo que o cliente pertence ao mesmo tenant
+        }
+      });
+
+      const roleInicial = clienteExistente ? 'CLIENTE' : 'USER';
+      const statusInicial = clienteExistente ? 'ATIVO' : 'PENDENTE';
+
       usuario = await prisma.usuario.create({
         data: {
           firebaseUid: decodedToken.uid,
           email: decodedToken.email || '',
           nome: decodedToken.name || decodedToken.email?.split('@')[0] || 'Usuário',
-          role: 'USER',
-          status: 'PENDENTE',
+          role: roleInicial,
+          status: statusInicial,
           tenantId: testeTenant.id
         }
       });
 
-      try {
-        const { sendPushToRole } = await import('@/lib/fcm');
-        await sendPushToRole(
-          testeTenant.id, 
-          'MASTER', 
-          'Novo Usuário Pendente', 
-          `O usuário ${usuario.nome} se cadastrou e aguarda aprovação.`
-        );
-      } catch (pushErr) {
-        console.error('Erro ao enviar push notification:', pushErr);
+      if (roleInicial === 'USER') {
+        try {
+          const { sendPushToRole } = await import('@/lib/fcm');
+          await sendPushToRole(
+            testeTenant.id, 
+            'MASTER', 
+            'Novo Usuário Pendente', 
+            `O usuário ${usuario.nome} se cadastrou e aguarda aprovação.`
+          );
+        } catch (pushErr) {
+          console.error('Erro ao enviar push notification:', pushErr);
+        }
       }
     }
 
