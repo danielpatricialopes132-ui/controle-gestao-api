@@ -22,6 +22,7 @@ export async function GET(request: Request) {
         categoriaFk: { select: { descricao: true } },
         obra: { select: { nome: true } },
         contaBancaria: { select: { nome: true } },
+        funcionario: { select: { id: true, nome: true, cargo: true } },
         rateios: {
           include: {
             obra: { select: { nome: true } },

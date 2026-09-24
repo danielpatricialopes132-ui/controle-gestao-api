@@ -39,6 +39,7 @@ export async function GET(request: Request) {
         categoriaFk: { select: { id: true, descricao: true, codigo: true } },
         obra: { select: { id: true, nome: true } },
         contaBancaria: { select: { id: true, nome: true } },
+        funcionario: { select: { id: true, nome: true, cargo: true } },
       },
       orderBy: { dataVencimento: 'desc' },
       take: 200, // Amostra expressiva para auditoria rápida
@@ -95,11 +96,7 @@ export async function GET(request: Request) {
       return isPago && semAnexo;
     });
 
-    // 6. ENQUADRAMENTO CONTÁBIL & SUGESTÃO DE PLANO DE CONTAS
-    // Anomalias heurísticas imediatas:
-    // a) Sem categoria
-    // b) Categoria genérica ("outros", "geral", "diversos", "caixa")
-    // c) Conflito Custo de Obra vs Despesa Administrativa (se tem obra, mas está como adm; ou se não tem obra, mas é insumo de canteiro)
+    // 6. ENQUADRAMENTO CONTÁBIL & AUDITORIA DE BENEFICIÁRIOS (FOLHA, PRÓ-LABORE, FORNECEDOR, TERCEIROS)
     const suspeitasEnquadramento: Array<{
       transacao: any;
       problemaDetectado: string;
@@ -117,26 +114,51 @@ export async function GET(request: Request) {
       let sugestaoCat: typeof categorias[0] | undefined;
       let justificativa = '';
 
+      // a) Sem categoria
       if (!t.categoriaId || !t.categoriaFk) {
         problema = 'Sem plano de contas / categoria definida';
-        // Tentar sugerir baseado em palavras-chave
         if (descLower.includes('cimento') || descLower.includes('areia') || descLower.includes('tijolo') || descLower.includes('concreto')) {
           sugestaoCat = categorias.find(c => c.descricao.toLowerCase().includes('material') || c.descricao.toLowerCase().includes('insumo'));
           justificativa = 'Identificado insumo de construção na descrição.';
-        } else if (descLower.includes('salario') || descLower.includes('diaria') || descLower.includes('folha')) {
-          sugestaoCat = categorias.find(c => c.descricao.toLowerCase().includes('mao de obra') || c.descricao.toLowerCase().includes('folha') || c.descricao.toLowerCase().includes('salario'));
-          justificativa = 'Pagamento com termos típicos de folha/mão de obra.';
+        } else if (descLower.includes('salario') || descLower.includes('diaria') || descLower.includes('folha') || descLower.includes('pro-labore') || descLower.includes('prolabore') || descLower.includes('pró-labore')) {
+          sugestaoCat = categorias.find(c => c.descricao.toLowerCase().includes('pro-labore') || c.descricao.toLowerCase().includes('pessoal') || c.descricao.toLowerCase().includes('folha') || c.descricao.toLowerCase().includes('salario'));
+          justificativa = 'Pagamento com termos de folha de pagamento, pró-labore ou mão de obra.';
         } else if (descLower.includes('aluguel') || descLower.includes('energia') || descLower.includes('internet') || descLower.includes('agua')) {
           sugestaoCat = categorias.find(c => c.descricao.toLowerCase().includes('administrativ') || c.descricao.toLowerCase().includes('consumo'));
           justificativa = 'Despesa contínua operacional/administrativa.';
         }
-      } else if (catAtual.includes('outro') || catAtual.includes('diverso') || catAtual.includes('geral')) {
+      } 
+      // b) Categoria genérica
+      else if (catAtual.includes('outro') || catAtual.includes('diverso') || catAtual.includes('geral')) {
         problema = `Enquadrado em categoria genérica: "${t.categoriaFk?.descricao}"`;
         justificativa = 'Categorias genéricas prejudicam a precisão da DRE e o centro de custos.';
-      } else if (temObra && (catAtual.includes('administrativ') || catAtual.includes('escritorio'))) {
+      } 
+      // c) Conflito Custo de Obra vs Administrativo
+      else if (temObra && (catAtual.includes('administrativ') || catAtual.includes('escritorio'))) {
         problema = `Transação da obra "${t.obra?.nome}" alocada como Despesa Administrativa`;
         sugestaoCat = categorias.find(c => c.descricao.toLowerCase().includes('custo') || c.descricao.toLowerCase().includes('obra') || c.descricao.toLowerCase().includes('material'));
         justificativa = 'Despesas alocadas a obras devem compor os Custos Diretos da Obra no plano de contas para correta margem bruta.';
+      }
+      // d) Pagamentos de Folha (Campo ou Escritório), Pró-Labore ou Fornecedores/Terceiros sem recebedor vinculado
+      else if (t.tipo === 'DESPESA') {
+        const isFolhaOuPessoal = catAtual.includes('folha') || catAtual.includes('salário') || catAtual.includes('salario') || catAtual.includes('pessoal');
+        const isProLabore = catAtual.includes('pró-labore') || catAtual.includes('pro-labore') || catAtual.includes('prolabore') || descLower.includes('pro-labore') || descLower.includes('prolabore') || descLower.includes('pró-labore');
+        const isFornecedorOuTerceiro = catAtual.includes('fornecedor') || catAtual.includes('terceiro') || catAtual.includes('empreiteiro') || descLower.includes('empreiteiro');
+
+        const temVinculo = !!t.funcionarioId || (t.clienteFornecedor && t.clienteFornecedor.trim() !== '');
+
+        if (!temVinculo) {
+          if (isProLabore) {
+            problema = 'Pró-Labore sem sócio/administrador vinculado como recebedor';
+            justificativa = 'Para conformidade contábil e fiscal, retiradas de pró-labore devem estar vinculadas nominalmente ao sócio beneficiário.';
+          } else if (isFolhaOuPessoal) {
+            problema = 'Pagamento de Folha/Salário sem colaborador vinculado';
+            justificativa = 'A despesa de folha deve estar vinculada ao colaborador do RH para histórico financeiro individual e cálculo de encargos.';
+          } else if (isFornecedorOuTerceiro) {
+            problema = 'Despesa com Terceiro/Fornecedor sem recebedor nominal';
+            justificativa = 'Para rastreabilidade de compras e auditoria fiscal, o fornecedor ou prestador deve estar vinculado.';
+          }
+        }
       }
 
       if (problema) {
@@ -180,7 +202,7 @@ export async function GET(request: Request) {
   }
 }
 
-// Endpoint POST para reclassificar em lote ou individualmente com 1 clique pelo MASTER
+// Endpoint POST para reclassificar ou vincular em lote/individualmente com 1 clique pelo MASTER
 export async function POST(request: Request) {
   try {
     const userAuth = await verifyIdToken(request);
@@ -190,15 +212,18 @@ export async function POST(request: Request) {
     }
 
     const tenantId = userAuth.tenantId;
-    const { acao, transacaoId, categoriaId, obraId } = await request.json();
+    const { acao, transacaoId, categoriaId, obraId, funcionarioId, clienteFornecedor } = await request.json();
 
-    if (acao === 'RECLASSIFICAR' && transacaoId && categoriaId) {
+    if (acao === 'RECLASSIFICAR' && transacaoId) {
+      const updateData: any = {};
+      if (categoriaId) updateData.categoriaId = categoriaId;
+      if (obraId !== undefined) updateData.obraId = obraId;
+      if (funcionarioId !== undefined) updateData.funcionarioId = funcionarioId;
+      if (clienteFornecedor !== undefined) updateData.clienteFornecedor = clienteFornecedor;
+
       const transacaoAtualizada = await prisma.transacaoFinanceira.update({
         where: { id: transacaoId, tenantId },
-        data: {
-          categoriaId,
-          obraId: obraId !== undefined ? obraId : undefined,
-        },
+        data: updateData,
       });
 
       return NextResponse.json({ success: true, data: transacaoAtualizada });
