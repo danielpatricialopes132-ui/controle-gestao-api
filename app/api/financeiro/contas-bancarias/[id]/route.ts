@@ -13,8 +13,14 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     const body = await request.json();
     const { nome, banco, agencia, conta, saldoInicial, isAtiva } = body;
 
-    const existente = await prisma.contaBancaria.findUnique({
-      where: { id, tenantId: userAuth.tenantId }
+    const isMaster = userAuth.role === 'MASTER';
+    const whereClause: any = { id };
+    if (!isMaster) {
+      whereClause.tenantId = userAuth.tenantId;
+    }
+
+    const existente = await prisma.contaBancaria.findFirst({
+      where: whereClause
     });
 
     if (!existente) {
@@ -47,10 +53,14 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
 
-    const { id  } = await params;
+    const isMaster = userAuth.role === 'MASTER';
+    const whereClause: any = { id };
+    if (!isMaster) {
+      whereClause.tenantId = userAuth.tenantId;
+    }
 
-    const existente = await prisma.contaBancaria.findUnique({
-      where: { id, tenantId: userAuth.tenantId },
+    const existente = await prisma.contaBancaria.findFirst({
+      where: whereClause,
       include: {
         _count: {
           select: { transacoes: true }
