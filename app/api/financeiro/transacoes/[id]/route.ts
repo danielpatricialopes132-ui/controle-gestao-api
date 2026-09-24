@@ -53,6 +53,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         comprovanteUrl: body.comprovanteUrl !== undefined ? body.comprovanteUrl : undefined,
         funcionarioId: body.funcionarioId !== undefined ? body.funcionarioId : undefined,
         clienteFornecedor: body.clienteFornecedor !== undefined ? body.clienteFornecedor : undefined,
+        adendoId: body.adendoId !== undefined ? body.adendoId : undefined,
       },
     });
 

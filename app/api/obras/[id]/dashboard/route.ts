@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyIdToken } from '@/lib/auth';
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const userAuth = await verifyIdToken(request);
     if (!userAuth) {
@@ -10,11 +10,12 @@ export async function GET(request: Request, { params }: { params: { id: string }
     }
 
     const { id } = await params;
+    const isMaster = userAuth.role === 'MASTER';
 
     const obra = await prisma.obra.findFirst({
       where: {
         id: id,
-        tenantId: userAuth.tenantId,
+        ...(!isMaster ? { tenantId: userAuth.tenantId } : {}),
       },
       include: {
         etapasCronograma: true,
@@ -28,7 +29,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     const transacoes = await prisma.transacaoFinanceira.findMany({
       where: {
         obraId: id,
-        tenantId: userAuth.tenantId,
+        ...(!isMaster ? { tenantId: userAuth.tenantId } : {}),
         status: 'PAGO'
       },
       include: {

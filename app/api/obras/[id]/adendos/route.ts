@@ -2,9 +2,51 @@ import { NextResponse } from 'next/server';
 import { verifyIdToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const userAuth = await verifyIdToken(request);
+    const { id: obraId } = await params;
+    const isMaster = userAuth.role === 'MASTER';
+
+    const obra = await prisma.obra.findFirst({
+      where: {
+        id: obraId,
+        ...(!isMaster ? { tenantId: userAuth.tenantId } : {}),
+      },
+      include: {
+        contrato: {
+          include: {
+            adendos: {
+              orderBy: { createdAt: 'desc' }
+            }
+          }
+        }
+      }
+    });
+
+    if (!obra) {
+      return NextResponse.json({ success: false, error: 'Obra não encontrada' }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        contrato: obra.contrato,
+        adendos: obra.contrato?.adendos || [],
+      }
+    });
+  } catch (error: any) {
+    console.error('Erro em GET /api/obras/[id]/adendos:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const decodedToken = await verifyIdToken(request);
@@ -19,7 +61,7 @@ export async function POST(
 
     let targetTenantId = decodedToken.tenantId;
 
-    const { id: obraId  } = await params;
+    const { id: obraId } = await params;
     
     // Validar obra
     const obra = await prisma.obra.findFirst({

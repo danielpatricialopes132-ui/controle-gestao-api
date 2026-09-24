@@ -65,6 +65,7 @@ export async function POST(request: Request) {
       status: body.status || 'PENDENTE',
       categoriaId: body.categoriaId || body.planoContaId,
       obraId: body.obraId || null,
+      adendoId: body.adendoId || null,
       clienteFornecedor: body.clienteId || body.clienteFornecedor || null,
       funcionarioId: body.funcionarioId || null,
       contaBancariaId: body.contaBancariaId || null,
