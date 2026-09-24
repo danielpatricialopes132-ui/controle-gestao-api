@@ -19,14 +19,14 @@ export async function GET(request: Request) {
     const transacoes = await prisma.transacaoFinanceira.findMany({
       where: whereClause,
       include: {
-        categoriaFk: { select: { descricao: true } },
+        categoriaFk: { select: { id: true, codigo: true, descricao: true } },
         obra: { select: { nome: true } },
         contaBancaria: { select: { nome: true } },
         funcionario: { select: { id: true, nome: true, cargo: true } },
         rateios: {
           include: {
             obra: { select: { nome: true } },
-            categoria: { select: { descricao: true } }
+            categoria: { select: { id: true, codigo: true, descricao: true } }
           }
         }
       },
