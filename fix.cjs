@@ -1,29 +1,37 @@
-const fs = require('fs');
-const path = require('path');
+﻿
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
 
-function walk(dir) {
-  let results = [];
-  const list = fs.readdirSync(dir);
-  list.forEach(file => {
-    file = path.resolve(dir, file);
-    const stat = fs.statSync(file);
-    if (stat && stat.isDirectory()) {
-      results = results.concat(walk(file));
-    } else if (file.endsWith('.ts')) {
-      results.push(file);
-    }
+async function fix() {
+  const ecoTenant = "e73eecb6-853c-43bc-99bd-7d5ba2d341a8";
+  
+  // Update transactions that point to Caixa Geral (Obra)
+  const caixaGeralObraId = "0afb9fe9-5b5b-4b34-8b04-91750bf9a9a4";
+  const jaquelineRealId = "c83f4b19-d7e0-461c-b90a-307aff3f9f8a";
+  
+  const res = await prisma.transacaoFinanceira.updateMany({
+    where: { obraId: caixaGeralObraId },
+    data: { obraId: jaquelineRealId }
   });
-  return results;
-}
+  console.log("Updated transactions to Jaqueline:", res.count);
 
-walk('app/api').forEach(file => {
-  let content = fs.readFileSync(file, 'utf8');
-  const initial = content;
-  content = content.replace(/from\s+['"].*?\/lib\/auth['"]/g, "from '@/lib/auth'");
-  content = content.replace(/from\s+['"].*?\/lib\/prisma['"]/g, "from '@/lib/prisma'");
-  content = content.replace(/from\s+['"].*?\/lib\/firebase-admin['"]/g, "from '@/lib/firebase-admin'");
-  if (content !== initial) {
-    fs.writeFileSync(file, content);
-    console.log('Fixed ' + file);
+  // Now delete the Caixa Geral Obra
+  await prisma.obra.deleteMany({
+    where: { id: caixaGeralObraId }
+  });
+  console.log("Deleted Caixa Geral Obra");
+  
+  // Also delete the transactions I just imported under the wrong tenant (TESTE LTDA)
+  const testeTenant = "e41063c0-9514-4304-813e-4ed3c487535b";
+  const fakeJaqueline = await prisma.obra.findFirst({ where: { nome: "Jaqueline Baroli", tenantId: testeTenant }});
+  if (fakeJaqueline) {
+     const delRes = await prisma.transacaoFinanceira.deleteMany({
+         where: { obraId: fakeJaqueline.id, tenantId: testeTenant }
+     });
+     console.log("Deleted transactions under fake Jaqueline:", delRes.count);
+     await prisma.obra.delete({ where: { id: fakeJaqueline.id }});
+     console.log("Deleted fake Jaqueline obra");
   }
-});
+}
+fix().catch(console.error).finally(() => process.exit());
+

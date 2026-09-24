@@ -29,7 +29,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
       await mkdir(uploadDir, { recursive: true });
     }
 
-    const filename = `nf_${params.id}_${Date.now()}.pdf`;
+    const filename = `nf_${(await params).id}_${Date.now()}.pdf`;
     const filepath = join(uploadDir, filename);
 
     await writeFile(filepath, buffer);
@@ -38,7 +38,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
 
     const propostaAtualizada = await prisma.proposta.update({
       where: {
-        id: params.id,
+        id: (await params).id,
         tenantId,
       },
       data: {
@@ -51,4 +51,16 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     console.error('Error uploading file:', error);
     return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 });
   }
+}
+
+
+export async function OPTIONS(request: Request) {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+      "Access-Control-Allow-Headers": "*",
+    },
+  });
 }

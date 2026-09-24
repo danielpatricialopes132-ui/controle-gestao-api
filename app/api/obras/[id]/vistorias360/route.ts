@@ -9,7 +9,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     const vistorias = await prisma.vistoria360.findMany({
       where: {
         tenantId: userAuth.tenantId,
-        obraId: params.id,
+        obraId: (await params).id,
       },
       orderBy: { dataVistoria: 'desc' }
     });
@@ -35,7 +35,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const novaVistoria = await prisma.vistoria360.create({
       data: {
         tenantId: userAuth.tenantId,
-        obraId: params.id,
+        obraId: (await params).id,
         ambiente,
         fotoUrl,
         observacoes,
@@ -48,4 +48,16 @@ export async function POST(request: Request, { params }: { params: { id: string 
     console.error('Erro ao criar vistoria 360:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
+}
+
+
+export async function OPTIONS(request: Request) {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+      "Access-Control-Allow-Headers": "*",
+    },
+  });
 }

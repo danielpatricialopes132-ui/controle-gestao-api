@@ -22,7 +22,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
     const vale = await prisma.vale.updateMany({
       where: {
-        id: params.id,
+        id: (await params).id,
         tenantId,
       },
       data: {
@@ -56,7 +56,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
     const vale = await prisma.vale.deleteMany({
       where: {
-        id: params.id,
+        id: (await params).id,
         tenantId,
       },
     });
@@ -70,4 +70,16 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     console.error('Erro em DELETE vale:', error);
     return NextResponse.json({ error: 'Erro ao excluir vale', details: error.message }, { status: 500 });
   }
+}
+
+
+export async function OPTIONS(request: Request) {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+      "Access-Control-Allow-Headers": "*",
+    },
+  });
 }

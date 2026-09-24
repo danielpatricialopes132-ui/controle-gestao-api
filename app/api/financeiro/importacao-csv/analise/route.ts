@@ -110,7 +110,7 @@ export async function POST(request: Request) {
       const tipoStr = idxTipo >= 0 ? rowCols[idxTipo] : '';
       const contatoStr = idxContato >= 0 ? rowCols[idxContato] : '';
       const planoContaStr = idxPlanoConta >= 0 ? rowCols[idxPlanoConta] : '';
-      const centroCustoStr = idxCentroCusto >= 0 ? rowCols[idxCentroCusto] : '';
+      let centroCustoStr = idxCentroCusto >= 0 ? rowCols[idxCentroCusto] : '';
       const descricao = idxDescricao >= 0 ? rowCols[idxDescricao] : '';
       const vencimentoStr = idxVencimento >= 0 ? rowCols[idxVencimento] : '';
       const valorStr = idxValor >= 0 ? rowCols[idxValor] : '';
@@ -151,13 +151,23 @@ export async function POST(request: Request) {
         validationStatus = 'ATENCAO';
       }
 
-      // Matching Contato
+            // Matching Contato
       let clienteFornecedorFinal = contatoStr;
       let isNovoContato = false;
-      if (contatoStr && contatoStr.toLowerCase() !== 'não informado') {
+      if (contatoStr && contatoStr.toLowerCase() !== 'não informado' && contatoStr.toLowerCase() !== 'nǜo informado') {
         const clienteMatch = clientes.find(c => stringSimilarity(c.nome, contatoStr) > 0.7);
         const fornMatch = fornecedores.find(f => stringSimilarity(f.nome, contatoStr) > 0.7);
-        if (!clienteMatch && !fornMatch) {
+        const obraByContact = obras.find(o => stringSimilarity(o.nome, contatoStr) > 0.8);
+        
+        if (obraByContact && !obraId) {
+          obraId = obraByContact.id;
+          centroCustoStr = obraByContact.nome;
+          warnings.push('Obra inferida pelo nome do contato.');
+          if (validationStatus === 'ATENCAO' || validationStatus === 'ERRO') validationStatus = 'ATENCAO';
+          // Se for obra, também removemos a msg de 'falta centro de custo'
+          const idxMsg = warnings.indexOf('Falta Centro de Custo/Conta');
+          if (idxMsg >= 0) warnings.splice(idxMsg, 1);
+        } else if (!clienteMatch && !fornMatch) {
           warnings.push(`Contato '${contatoStr}' não encontrado. Sugestão: Criar Novo`);
           validationStatus = 'ATENCAO';
           isNovoContato = true;
@@ -237,4 +247,17 @@ export async function POST(request: Request) {
     console.error('Erro na análise do CSV:', error);
     return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
   }
+}
+
+
+
+export async function OPTIONS(request: Request) {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+      "Access-Control-Allow-Headers": "*",
+    },
+  });
 }

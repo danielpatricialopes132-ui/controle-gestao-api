@@ -9,7 +9,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id  } = await params;
     const { codigo, descricao, tipo, isAtiva } = await request.json();
 
     const categoria = await prisma.categoriaFinanceira.findUnique({ where: { id } });
@@ -41,7 +41,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id  } = await params;
 
     const categoria = await prisma.categoriaFinanceira.findUnique({ where: { id } });
     if (!categoria || categoria.tenantId !== userAuth.tenantId) {
@@ -54,4 +54,16 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     console.error('Erro ao excluir categoria financeira:', error);
     return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
   }
+}
+
+
+export async function OPTIONS(request: Request) {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+      "Access-Control-Allow-Headers": "*",
+    },
+  });
 }

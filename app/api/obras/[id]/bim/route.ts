@@ -9,7 +9,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     const bimModels = await prisma.bimModel.findMany({
       where: {
         tenantId: userAuth.tenantId,
-        obraId: params.id,
+        obraId: (await params).id,
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -35,7 +35,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const newModel = await prisma.bimModel.create({
       data: {
         tenantId: userAuth.tenantId,
-        obraId: params.id,
+        obraId: (await params).id,
         nome,
         ifcUrl,
         tamanhoBytes
@@ -47,4 +47,16 @@ export async function POST(request: Request, { params }: { params: { id: string 
     console.error('Erro ao criar modelo BIM:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
+}
+
+
+export async function OPTIONS(request: Request) {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+      "Access-Control-Allow-Headers": "*",
+    },
+  });
 }

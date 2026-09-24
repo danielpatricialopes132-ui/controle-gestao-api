@@ -6,7 +6,7 @@ export async function GET(request: Request, { params }: { params: { obraId: stri
   try {
     const userAuth = await verifyIdToken(request);
     const tenantId = userAuth.tenantId;
-    const { obraId } = params;
+    const { obraId  } = await params;
 
     const obra = await prisma.obra.findUnique({
       where: { id: obraId, tenantId },
@@ -126,4 +126,16 @@ export async function GET(request: Request, { params }: { params: { obraId: stri
     console.error('Erro em gerencial-obra API:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 400 });
   }
+}
+
+
+export async function OPTIONS(request: Request) {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+      "Access-Control-Allow-Headers": "*",
+    },
+  });
 }

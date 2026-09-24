@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { GoogleGenerativeAI } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
 export async function GET(request: Request) {
   try {
@@ -43,9 +43,11 @@ O prazo de devolução está previsto para ${termo.previsaoDevolucao?.toLocaleDa
 Escreva uma mensagem curta de WhatsApp, educada mas firme, lembrando o fornecedor do prazo de entrega que se aproxima em menos de 3 dias, pedindo que confirme se está tudo certo.
 Apenas retorne o texto da mensagem, sem aspas, pronto para ser enviado.`;
 
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const result = await model.generateContent(prompt);
-      const mensagemIA = result.response.text();
+      const result = await ai.models.generateContent({
+        model: 'gemini-3.5-flash-lite',
+        contents: prompt
+      });
+      const mensagemIA = result.text;
 
       // Enviar via Evolution API (WhatsApp)
       const celularFormatado = termo.terceiro.telefone.replace(/\D/g, '');
@@ -81,4 +83,16 @@ Apenas retorne o texto da mensagem, sem aspas, pronto para ser enviado.`;
     console.error('Erro no Agente de Cobrança:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
+}
+
+
+export async function OPTIONS(request: Request) {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+      "Access-Control-Allow-Headers": "*",
+    },
+  });
 }

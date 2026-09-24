@@ -19,7 +19,7 @@ export async function POST(
 
     let targetTenantId = decodedToken.tenantId;
 
-    const { id: obraId } = params;
+    const { id: obraId  } = await params;
     
     // Validar obra
     const obra = await prisma.obra.findFirst({
@@ -72,4 +72,16 @@ export async function POST(
     console.error('Erro em POST /api/obras/[id]/adendos:', error);
     return NextResponse.json({ success: false, error: 'Erro interno' }, { status: 500 });
   }
+}
+
+
+export async function OPTIONS(request: Request) {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+      "Access-Control-Allow-Headers": "*",
+    },
+  });
 }

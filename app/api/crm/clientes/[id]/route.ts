@@ -14,7 +14,7 @@ export async function PUT(request: Request, props: { params: Promise<{ id: strin
 
     const clienteAtualizado = await prisma.cliente.updateMany({
       where: {
-        id: params.id,
+        id: (await params).id,
         tenantId,
       },
       data: {
@@ -46,7 +46,7 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
 
     const clienteDeletado = await prisma.cliente.deleteMany({
       where: {
-        id: params.id,
+        id: (await params).id,
         tenantId,
       },
     });
@@ -60,4 +60,16 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
     console.error('Error deleting cliente:', error);
     return NextResponse.json({ error: 'Failed to delete cliente' }, { status: 500 });
   }
+}
+
+
+export async function OPTIONS(request: Request) {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+      "Access-Control-Allow-Headers": "*",
+    },
+  });
 }

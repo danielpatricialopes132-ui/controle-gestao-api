@@ -1,67 +1,30 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
+﻿<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BIM Viewer (IFC.js)</title>
-  <style>
-    body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: sans-serif; }
-    #viewer-container { width: 100%; height: 100%; }
-    #loading {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(255, 255, 255, 0.9); display: flex; flex-direction: column;
-      justify-content: center; align-items: center; z-index: 10;
-    }
-    .spinner {
-      border: 4px solid #f3f3f3; border-top: 4px solid #3498db;
-      border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;
-    }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIM Viewer</title>
+    <!-- Import the component -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; background-color: #f4f4f4; }
+        model-viewer {
+            width: 100%;
+            height: 100%;
+            --poster-color: transparent;
+        }
+    </style>
 </head>
 <body>
-  <div id="loading">
-    <div class="spinner"></div>
-    <p style="margin-top: 16px;">Carregando Modelo BIM...</p>
-  </div>
-  <div id="viewer-container"></div>
-
-  <!-- Import Three.js and IFC.js using CDNs -->
-  <script type="module">
-    import { IfcViewerAPI } from 'https://unpkg.com/web-ifc-viewer@1.0.218/dist/web-ifc-viewer.js';
-
-    async function initBimViewer() {
-      try {
-        const container = document.getElementById('viewer-container');
-        const viewer = new IfcViewerAPI({ container, backgroundColor: new THREE.Color(0xffffff) });
-        
-        // Configurar o visualizador
-        viewer.axes.setAxes();
-        viewer.grid.setGrid();
-        viewer.IFC.setWasmPath('https://unpkg.com/web-ifc@0.0.36/web-ifc.wasm');
-
-        // Buscar URL do arquivo IFC na Query String (ex: ?url=https://...)
-        const urlParams = new URLSearchParams(window.location.search);
-        let ifcUrl = urlParams.get('url');
-
-        // Arquivo de Demonstração (Clínica) caso não haja URL fornecida
-        if (!ifcUrl) {
-          ifcUrl = 'https://thatopen.github.io/engine_web-ifc/resources/01.ifc';
-        }
-
-        // Carregar o modelo
-        await viewer.IFC.loadIfcUrl(ifcUrl);
-        
-        // Esconder o loading
-        document.getElementById('loading').style.display = 'none';
-
-      } catch (error) {
-        console.error('Erro ao carregar o modelo BIM:', error);
-        document.getElementById('loading').innerHTML = '<p style="color: red;">Erro ao carregar o modelo. Verifique a URL do arquivo IFC.</p>';
-      }
-    }
-
-    initBimViewer();
-  </script>
+    <model-viewer
+        src="https://modelviewer.dev/shared-assets/models/House.glb"
+        alt="A 3D model of a house"
+        auto-rotate
+        camera-controls
+        shadow-intensity="1"
+        environment-image="neutral"
+        exposure="1.0"
+        interaction-prompt="auto">
+    </model-viewer>
 </body>
 </html>

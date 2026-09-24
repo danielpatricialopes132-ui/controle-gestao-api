@@ -9,7 +9,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     const obra = await prisma.obra.findFirst({
       where: {
@@ -85,6 +85,18 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
   } catch (error: any) {
     console.error('Erro ao carregar dashboard da obra:', error);
-    return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
+    require('fs').writeFileSync('C:\\Controle-Gestao\\backend\\error-dump.txt', error.stack || error.message);
+    return NextResponse.json({ error: 'Erro interno no servidor', details: error.message }, { status: 500 });
   }
+}
+
+export async function OPTIONS(request: Request) {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+      "Access-Control-Allow-Headers": "*",
+    },
+  });
 }

@@ -21,7 +21,13 @@ export async function GET(request: Request) {
       include: {
         categoriaFk: { select: { descricao: true } },
         obra: { select: { nome: true } },
-        contaBancaria: { select: { nome: true } }
+        contaBancaria: { select: { nome: true } },
+        rateios: {
+          include: {
+            obra: { select: { nome: true } },
+            categoria: { select: { descricao: true } }
+          }
+        }
       },
       orderBy: { dataVencimento: 'desc' }
     });
@@ -50,23 +56,38 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Faltam dados obrigatórios' }, { status: 400 });
     }
 
+    const dataTransacao: any = {
+      descricao: body.descricao,
+      tipo: body.tipo, // RECEITA ou DESPESA
+      valor: parseFloat(body.valor),
+      dataVencimento: body.dataVencimento, // Formato ISO 8601 string
+      status: body.status || 'PENDENTE',
+      categoriaId: body.categoriaId || body.planoContaId,
+      obraId: body.obraId || null,
+      clienteFornecedor: body.clienteId || body.clienteFornecedor || null,
+      funcionarioId: body.funcionarioId || null,
+      contaBancariaId: body.contaBancariaId || null,
+      codigoBarras: body.codigoBarras || null,
+      observacao: body.observacao || null,
+      comprovanteUrl: body.comprovanteUrl || null,
+      tenantId: tenantId,
+    };
+
+    if (body.rateios && Array.isArray(body.rateios) && body.rateios.length > 0) {
+      dataTransacao.rateios = {
+        create: body.rateios.map((r: any) => ({
+          obraId: r.obraId || null,
+          categoriaId: r.categoriaId || null,
+          valor: parseFloat(r.valor),
+          percentual: r.percentual ? parseFloat(r.percentual) : null,
+          observacao: r.observacao || null
+        }))
+      };
+    }
+
     const transacao = await prisma.transacaoFinanceira.create({
-      data: {
-        descricao: body.descricao,
-        tipo: body.tipo, // RECEITA ou DESPESA
-        valor: parseFloat(body.valor),
-        dataVencimento: body.dataVencimento, // Formato ISO 8601 string
-        status: body.status || 'PENDENTE',
-        categoriaId: body.categoriaId || body.planoContaId,
-        obraId: body.obraId || null,
-        clienteId: body.clienteId || null,
-        funcionarioId: body.funcionarioId || null,
-        contaBancariaId: body.contaBancariaId || null,
-        codigoBarras: body.codigoBarras || null,
-        observacao: body.observacao || null,
-        comprovanteUrl: body.comprovanteUrl || null,
-        tenantId: tenantId,
-      }
+      data: dataTransacao,
+      include: { rateios: true }
     });
 
     await registrarLog(userAuth.dbId, tenantId, 'CRIAR_TRANSACAO', 'FINANCEIRO', {
@@ -82,3 +103,15 @@ export async function POST(request: Request) {
 }
 
 
+
+
+export async function OPTIONS(request: Request) {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+      "Access-Control-Allow-Headers": "*",
+    },
+  });
+}

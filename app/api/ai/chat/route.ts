@@ -51,10 +51,16 @@ MÓDULOS E REGRAS DE NEGÓCIO DO SISTEMA:
 - Notificações Automáticas via WhatsApp: Disparo com 1 clique de autorizações de portaria (com link do portal) e termos de cautela de materiais para os gestores de marmorarias e marcenarias.
 - Vistoria com Slider Antes & Depois: Ferramenta visual interativa para inspecionar fotos antes da intervenção versus após a montagem concluída com cortina deslizante.
 
-8. AUDITORIA IMUTÁVEL (LOGS):
+8. AUTOMAÇÕES AVANÇADAS, RATEIOS E CONTROLE DE ESTOQUES (FASE 9):
+- Rateio Multicentro de Custos: Permite dividir o valor de uma despesa única entre múltiplas obras e planos de contas, equilibrando o DRE de forma justa.
+- Transferência entre Estoques: Deslocamento ágil de insumos de um canteiro para outro, registrando saída e entrada integradas.
+- Régua de Cobrança de Clientes: Robô silencioso que detecta receitas a vencer em 3 dias ou em atraso e cobra gentilmente os clientes via WhatsApp com textos gerados por IA.
+- Ficha de Verificação de Serviço (FVS) com IA (Gemini Vision): O engenheiro fotografa a alvenaria, reboco, etc, e a IA faz a checagem visual acusando conformidades e não conformidades.
+
+9. AUDITORIA IMUTÁVEL (LOGS):
 - Rastreabilidade ponta a ponta: Mostra Quem (usuário), O Quê (ação/tabela/id), Quando (timestamp) e os dados anteriores e atuais em formato JSON para auditoria financeira e de compras.
 
-9. MULTI-TENANT E CUSTOMIZAÇÃO:
+10. MULTI-TENANT E CUSTOMIZAÇÃO:
 - Cadastro de empresas isoladas, upload de logomarca própria e plano de contas / categorias financeiras personalizadas por tenant.
 
 POSTURA DE RESPOSTA:
@@ -101,4 +107,16 @@ export async function POST(request: Request) {
     console.error('Erro no chat Gemini:', error);
     return NextResponse.json({ error: 'Erro interno no servidor de IA' }, { status: 500 });
   }
+}
+
+
+export async function OPTIONS(request: Request) {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+      "Access-Control-Allow-Headers": "*",
+    },
+  });
 }

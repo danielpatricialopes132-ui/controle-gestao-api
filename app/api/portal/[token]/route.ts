@@ -61,3 +61,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }
 }
+
+
+export async function OPTIONS(request: Request) {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+      "Access-Control-Allow-Headers": "*",
+    },
+  });
+}
