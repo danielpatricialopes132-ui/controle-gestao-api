@@ -61,7 +61,7 @@ export async function POST(request: Request) {
       descricao: body.descricao,
       tipo: body.tipo, // RECEITA ou DESPESA
       valor: parseFloat(body.valor),
-      dataVencimento: body.dataVencimento, // Formato ISO 8601 string
+      dataVencimento: body.dataVencimento ? new Date(body.dataVencimento) : new Date(),
       status: body.status || 'PENDENTE',
       categoriaId: body.categoriaId || body.planoContaId,
       obraId: body.obraId || null,
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, data: transacao });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 401 });
+    return NextResponse.json({ success: false, error: error.message }, { status: 400 });
   }
 }
 
