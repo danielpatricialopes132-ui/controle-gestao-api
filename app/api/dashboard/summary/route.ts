@@ -34,22 +34,41 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Tenant não encontrado no banco' }, { status: 404 });
     }
 
-    const [qtdObras, qtdClientes, funcionarios, transacoes, obrasAtivasData] = await Promise.all([
+    const [qtdObras, qtdClientes, funcionarios, transacoes, obrasAtivasData, contasBancarias] = await Promise.all([
       prisma.obra.count({ where: { tenantId } }),
       prisma.cliente.count({ where: { tenantId } }),
       prisma.funcionario.count({ where: { tenantId } }),
       prisma.transacaoFinanceira.findMany({ 
         where: { tenantId },
-        include: { categoriaFk: { select: { codigo: true } } },
+        include: { 
+          categoriaFk: { select: { codigo: true } },
+          contaBancaria: { select: { id: true, nome: true } }
+        },
         orderBy: { createdAt: 'desc' }
       }),
       prisma.obra.findMany({
         where: { tenantId, status: 'EM_ANDAMENTO' }
+      }),
+      prisma.contaBancaria.findMany({
+        where: { tenantId, isAtiva: true },
+        orderBy: { nome: 'asc' }
       })
     ]);
 
     let receitasPagas = 0.0;
     let despesasPagas = 0.0;
+
+    // Saldos individuais por conta bancária
+    const saldosContasMap: Record<string, { id: string; nome: string; receitas: number; despesas: number; saldo: number }> = {};
+    for (const c of contasBancarias) {
+      saldosContasMap[c.id] = {
+        id: c.id,
+        nome: c.nome,
+        receitas: 0.0,
+        despesas: 0.0,
+        saldo: Number(c.saldoInicial || 0)
+      };
+    }
     
     // Contas a pagar agrupadas
     const now = new Date();
@@ -77,8 +96,20 @@ export async function GET(request: Request) {
       }
       
       if (t.status === 'PAGO') {
-        if (t.tipo === 'RECEITA') receitasPagas += val;
-        if (t.tipo === 'DESPESA') despesasPagas += val;
+        if (t.tipo === 'RECEITA') {
+          receitasPagas += val;
+          if (t.contaBancariaId && saldosContasMap[t.contaBancariaId]) {
+            saldosContasMap[t.contaBancariaId].receitas += val;
+            saldosContasMap[t.contaBancariaId].saldo += val;
+          }
+        }
+        if (t.tipo === 'DESPESA') {
+          despesasPagas += val;
+          if (t.contaBancariaId && saldosContasMap[t.contaBancariaId]) {
+            saldosContasMap[t.contaBancariaId].despesas += val;
+            saldosContasMap[t.contaBancariaId].saldo -= val;
+          }
+        }
       }
       
       if (t.tipo === 'DESPESA' && t.status === 'PENDENTE' && t.dataVencimento) {
@@ -132,6 +163,7 @@ export async function GET(request: Request) {
         empresa: tenant.nome,
         stats: {
           saldoEmCaixa: receitasPagas - despesasPagas,
+          saldosPorConta: Object.values(saldosContasMap),
           obrasAtivas: obrasAtivasData.length,
           colaboradoresAtivos: funcionarios,
           fluxo: {
@@ -160,7 +192,6 @@ export async function GET(request: Request) {
     );
   }
 }
-
 
 export async function OPTIONS(request: Request) {
   return new Response(null, {
