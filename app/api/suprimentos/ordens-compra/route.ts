@@ -7,7 +7,8 @@ export async function GET(request: Request) {
     const userAuth = await verifyIdToken(request);
     if (!userAuth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const tenantId = userAuth.tenantId;
+    const tenantOverride = request.headers.get('x-tenant-override');
+    const tenantId = (userAuth.role === 'MASTER' && tenantOverride) ? tenantOverride : userAuth.tenantId;
 
     const ordens = await prisma.ordemCompra.findMany({
       where: { tenantId },
@@ -35,7 +36,8 @@ export async function POST(request: Request) {
     const userAuth = await verifyIdToken(request);
     if (!userAuth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const tenantId = userAuth.tenantId;
+    const tenantOverride = request.headers.get('x-tenant-override');
+    const tenantId = (userAuth.role === 'MASTER' && tenantOverride) ? tenantOverride : userAuth.tenantId;
     const data = await request.json();
 
     // 1. Inteligência de Preços: Verificar se itens estão acima do preço base ou orçado

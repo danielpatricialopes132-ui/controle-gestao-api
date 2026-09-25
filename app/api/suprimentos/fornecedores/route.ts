@@ -7,7 +7,8 @@ export async function GET(request: Request) {
     const userAuth = await verifyIdToken(request);
     if (!userAuth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const tenantId = userAuth.tenantId;
+    const tenantOverride = request.headers.get('x-tenant-override');
+    const tenantId = (userAuth.role === 'MASTER' && tenantOverride) ? tenantOverride : userAuth.tenantId;
 
     const { searchParams } = new URL(request.url);
     const tipo = searchParams.get('tipo'); // MATERIAL, EMPREITEIRO, SUBCONTRATADO, etc.
@@ -49,7 +50,8 @@ export async function POST(request: Request) {
     const userAuth = await verifyIdToken(request);
     if (!userAuth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const tenantId = userAuth.tenantId;
+    const tenantOverride = request.headers.get('x-tenant-override');
+    const tenantId = (userAuth.role === 'MASTER' && tenantOverride) ? tenantOverride : userAuth.tenantId;
     const data = await request.json();
 
     const novoFornecedor = await prisma.fornecedor.create({

@@ -1,10 +1,20 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { verifyIdToken } from '@/lib/auth';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const tenantId = searchParams.get('tenantId');
+    let tenantId = searchParams.get('tenantId') || request.headers.get('x-tenant-id');
+
+    const authHeader = request.headers.get('authorization');
+    if (authHeader) {
+      const userAuth = await verifyIdToken(request);
+      if (userAuth) {
+        const tenantOverride = request.headers.get('x-tenant-override');
+        tenantId = (userAuth.role === 'MASTER' && tenantOverride) ? tenantOverride : userAuth.tenantId;
+      }
+    }
 
     if (!tenantId) {
       return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 });
@@ -34,7 +44,16 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { identificador, marca, modelo, ano, custoDiario, status, tenantId } = body;
+    let { identificador, marca, modelo, ano, custoDiario, status, tenantId } = body;
+
+    const authHeader = request.headers.get('authorization');
+    if (authHeader) {
+      const userAuth = await verifyIdToken(request);
+      if (userAuth) {
+        const tenantOverride = request.headers.get('x-tenant-override');
+        tenantId = (userAuth.role === 'MASTER' && tenantOverride) ? tenantOverride : (tenantId || userAuth.tenantId);
+      }
+    }
 
     if (!tenantId || !identificador) {
       return NextResponse.json({ error: 'Tenant ID e Identificador são obrigatórios' }, { status: 400 });
