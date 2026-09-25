@@ -40,31 +40,25 @@ export async function GET(request: Request) {
     const dataFim = dataFimParam ? new Date(dataFimParam) : new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0, 23, 59, 59);
 
     // Transações ocorridas ANTES de dataInicio para calcular o saldo de abertura
-    const aggReceitas = await prisma.transacaoFinanceira.aggregate({
+    const aggResult = await prisma.transacaoFinanceira.groupBy({
+      by: ['tipo'],
       _sum: { valor: true },
       where: {
         tenantId,
         contaBancariaId: { in: contasIds },
         dataPagamento: { lt: dataInicio },
-        status: 'PAGO',
-        tipo: 'RECEITA'
+        status: 'PAGO'
       }
     });
 
-    const aggDespesas = await prisma.transacaoFinanceira.aggregate({
-      _sum: { valor: true },
-      where: {
-        tenantId,
-        contaBancariaId: { in: contasIds },
-        dataPagamento: { lt: dataInicio },
-        status: 'PAGO',
-        tipo: 'DESPESA'
-      }
-    });
+    let totalReceitas = 0;
+    let totalDespesas = 0;
+    for (const row of aggResult) {
+      if (row.tipo === 'RECEITA') totalReceitas = Number(row._sum.valor || 0);
+      if (row.tipo === 'DESPESA') totalDespesas = Number(row._sum.valor || 0);
+    }
 
-    let saldoAberturaPeriodo = saldoInicialBase 
-      + Number(aggReceitas._sum.valor || 0) 
-      - Number(aggDespesas._sum.valor || 0);
+    let saldoAberturaPeriodo = saldoInicialBase + totalReceitas - totalDespesas;
 
     // Transações no período atual
     const transacoes = await prisma.transacaoFinanceira.findMany({
@@ -77,9 +71,15 @@ export async function GET(request: Request) {
         },
         status: 'PAGO'
       },
-      include: {
-        categoriaFk: true,
-        contaBancaria: true,
+      select: {
+        id: true,
+        dataPagamento: true,
+        descricao: true,
+        tipo: true,
+        valor: true,
+        categoria: true,
+        categoriaFk: { select: { descricao: true } },
+        contaBancaria: { select: { nome: true } }
       },
       orderBy: {
         dataPagamento: 'asc'
