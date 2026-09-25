@@ -16,7 +16,12 @@ export async function GET(request: Request) {
     }
 
     if (!tenantId) {
-      return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 });
+      // Se for MASTER e ainda não selecionou tenant (Painel Global), traz todos
+      const clientes = await prisma.cliente.findMany({
+        orderBy: { nome: 'asc' },
+        take: 100,
+      });
+      return NextResponse.json(clientes);
     }
 
     const clientes = await prisma.cliente.findMany({

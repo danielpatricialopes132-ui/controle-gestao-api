@@ -12,9 +12,7 @@ if (!getApps().length) {
   });
 }
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 export async function verifyIdToken(request: Request) {
   const authHeader = request.headers.get('authorization');

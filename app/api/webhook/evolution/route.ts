@@ -5,7 +5,7 @@ import { env } from 'process';
 import { PrismaClient } from '@prisma/client';
 
 const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY || '');
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 const registrarEscalaDeclaration: FunctionDeclaration = {
   name: "registrar_escala",

@@ -17,7 +17,21 @@ export async function GET(request: Request) {
     }
 
     if (!tenantId) {
-      return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 });
+      // Se for MASTER e ainda não selecionou tenant (Painel Global), traz todos
+      const equipamentos = await prisma.equipamento.findMany({
+        include: {
+          alocacoes: {
+            include: { obra: true },
+            orderBy: { dataInicio: 'desc' }
+          },
+          manutencoes: {
+            orderBy: { dataProgramada: 'desc' }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      });
+      return NextResponse.json(equipamentos);
     }
 
     const equipamentos = await prisma.equipamento.findMany({
