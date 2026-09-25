@@ -14,7 +14,10 @@ export async function GET(request: Request) {
     const dataInicioParam = searchParams.get('dataInicio');
     const dataFimParam = searchParams.get('dataFim');
 
-    let contasWhere: any = { tenantId: userAuth.tenantId };
+    const tenantOverride = request.headers.get('x-tenant-override');
+    const tenantId = (userAuth.role === 'MASTER' && tenantOverride) ? tenantOverride : userAuth.tenantId;
+
+    let contasWhere: any = { tenantId };
     if (contaBancariaId && contaBancariaId !== 'todas') {
       contasWhere.id = contaBancariaId;
     }
@@ -39,7 +42,7 @@ export async function GET(request: Request) {
     // Transações ocorridas ANTES de dataInicio para calcular o saldo de abertura
     const transacoesAnteriores = await prisma.transacaoFinanceira.findMany({
       where: {
-        tenantId: userAuth.tenantId,
+        tenantId,
         contaBancariaId: { in: contasIds },
         dataPagamento: {
           lt: dataInicio
@@ -61,7 +64,7 @@ export async function GET(request: Request) {
     // Transações no período atual
     const transacoes = await prisma.transacaoFinanceira.findMany({
       where: {
-        tenantId: userAuth.tenantId,
+        tenantId,
         contaBancariaId: { in: contasIds },
         dataPagamento: {
           gte: dataInicio,

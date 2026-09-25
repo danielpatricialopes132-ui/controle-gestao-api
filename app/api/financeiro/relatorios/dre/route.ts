@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyIdToken } from '@/lib/auth';
 
@@ -17,14 +17,25 @@ export async function GET(request: Request) {
     const dataInicio = dataInicioParam ? new Date(dataInicioParam) : new Date(hoje.getFullYear(), 0, 1); // Default: ano inteiro
     const dataFim = dataFimParam ? new Date(dataFimParam) : new Date(hoje.getFullYear(), 11, 31, 23, 59, 59);
 
+    const tenantOverride = request.headers.get('x-tenant-override');
+    const tenantId = (userAuth.role === 'MASTER' && tenantOverride) ? tenantOverride : userAuth.tenantId;
+
+    if (!tenantId) {
+      return NextResponse.json({ error: 'Tenant não informado' }, { status: 400 });
+    }
+
     const transacoes = await prisma.transacaoFinanceira.findMany({
       where: {
-        tenantId: userAuth.tenantId,
+        tenantId,
         dataPagamento: {
           gte: dataInicio,
           lte: dataFim
         },
-        status: 'PAGO'
+        status: 'PAGO',
+        OR: [
+          { categoriaFk: { codigo: { not: '0.2.0' } } },
+          { categoriaFk: null }
+        ]
       },
       include: {
         categoriaFk: true,
@@ -127,11 +138,11 @@ export async function GET(request: Request) {
 
 export async function OPTIONS(request: Request) {
   return new Response(null, {
-    status: 204,
+    status: 200,
     headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+      "Access-Control-Allow-Headers": "*",
     },
   });
 }
