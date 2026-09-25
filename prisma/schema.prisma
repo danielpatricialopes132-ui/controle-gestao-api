@@ -323,6 +323,8 @@ model TransacaoFinanceira {
   @@index([obraId])
   @@index([categoriaId])
   @@index([contaBancariaId])
+  @@index([dataPagamento])
+  @@index([status])
   @@map("transacoes_financeiras")
 }
 
