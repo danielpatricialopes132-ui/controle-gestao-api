@@ -40,26 +40,31 @@ export async function GET(request: Request) {
     const dataFim = dataFimParam ? new Date(dataFimParam) : new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0, 23, 59, 59);
 
     // Transações ocorridas ANTES de dataInicio para calcular o saldo de abertura
-    const transacoesAnteriores = await prisma.transacaoFinanceira.findMany({
+    const aggReceitas = await prisma.transacaoFinanceira.aggregate({
+      _sum: { valor: true },
       where: {
         tenantId,
         contaBancariaId: { in: contasIds },
-        dataPagamento: {
-          lt: dataInicio
-        },
-        status: 'PAGO'
+        dataPagamento: { lt: dataInicio },
+        status: 'PAGO',
+        tipo: 'RECEITA'
       }
     });
 
-    let saldoAberturaPeriodo = saldoInicialBase;
-    transacoesAnteriores.forEach(t => {
-      const valor = Number(t.valor);
-      if (t.tipo === 'RECEITA') {
-        saldoAberturaPeriodo += valor;
-      } else {
-        saldoAberturaPeriodo -= valor;
+    const aggDespesas = await prisma.transacaoFinanceira.aggregate({
+      _sum: { valor: true },
+      where: {
+        tenantId,
+        contaBancariaId: { in: contasIds },
+        dataPagamento: { lt: dataInicio },
+        status: 'PAGO',
+        tipo: 'DESPESA'
       }
     });
+
+    let saldoAberturaPeriodo = saldoInicialBase 
+      + Number(aggReceitas._sum.valor || 0) 
+      - Number(aggDespesas._sum.valor || 0);
 
     // Transações no período atual
     const transacoes = await prisma.transacaoFinanceira.findMany({
