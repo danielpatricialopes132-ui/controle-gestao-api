@@ -31,12 +31,17 @@ export async function GET(request: Request) {
 
     if (!usuario) {
       // Usuário novo! Atrelar à empresa TESTE LTDA por padrão
-      const testeTenant = await prisma.tenant.findUnique({
+      let testeTenant = await prisma.tenant.findUnique({
         where: { documento: '00000000000000' }
       });
 
       if (!testeTenant) {
-        return NextResponse.json({ error: 'Empresa padrão não encontrada' }, { status: 500 });
+        testeTenant = await prisma.tenant.create({
+          data: {
+            nome: 'Empresa Padrão',
+            documento: '00000000000000',
+          }
+        });
       }
 
       // Verifica se o e-mail pertence a um Cliente cadastrado

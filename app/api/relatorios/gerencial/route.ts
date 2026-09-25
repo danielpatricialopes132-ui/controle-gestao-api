@@ -7,7 +7,8 @@ export async function GET(request: Request) {
     const userAuth = await verifyIdToken(request);
     
     // Obter o tenantId ou validar acesso MASTER (neste caso, pegamos do userAuth)
-    const tenantId = userAuth.tenantId;
+    const tenantOverride = request.headers.get('x-tenant-override');
+    const tenantId = (userAuth.role === 'MASTER' && tenantOverride) ? tenantOverride : userAuth.tenantId;
     if (!tenantId) {
       return NextResponse.json({ error: 'Tenant não encontrado' }, { status: 403 });
     }
