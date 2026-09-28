@@ -78,6 +78,7 @@ export async function GET(request: Request) {
         tipo: true,
         valor: true,
         categoria: true,
+        isConciliada: true,
         categoriaFk: { select: { descricao: true } },
         contaBancaria: { select: { nome: true } }
       },
@@ -104,6 +105,7 @@ export async function GET(request: Request) {
         conta: t.contaBancaria?.nome ?? 'Sem Conta',
         tipo: t.tipo,
         valor: valor,
+        isConciliada: t.isConciliada,
         saldoProgressivo: saldoProgressivoAtual
       };
     });

@@ -36,7 +36,7 @@ Não inclua crases no formato, responda somente o JSON.`;
       ],
     });
 
-    const textoIA = response.text;
+    const textoIA = response.text || '';
     let jsonParsed;
     
     try {
