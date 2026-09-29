@@ -54,6 +54,8 @@ model Tenant {
   termosRetirada         TermoRetiradaItem[]
   vistorias360           Vistoria360[]
   bimModels              BimModel[]
+  chatConversas          ChatConversa[]
+  agendaEventos          AgendaEvento[]
 
   @@map("tenants")
 }
@@ -69,9 +71,13 @@ model Usuario {
   updatedAt     DateTime       @updatedAt
   status        String         @default("PENDENTE")
   telefone      String?        @unique
-  fcmTokens     String[]       @default([])
-  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  logsAuditoria LogAuditoria[]
+  fcmTokens             String[]           @default([])
+  tenant                Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  logsAuditoria         LogAuditoria[]
+  chatParticipacoes     ChatParticipante[]
+  chatMensagensEnviadas ChatMensagem[]
+  agendaEventosCriados  AgendaEvento[]       @relation("AgendaCriador")
+  agendaParticipacoes   AgendaParticipante[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -89,9 +95,10 @@ model Cliente {
   tokenPortal  String?      @unique
   updatedAt    DateTime     @updatedAt
   tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  propostas    Proposta[]
-  notasFiscais NotaFiscal[]
-  obras        Obra[]
+  propostas     Proposta[]
+  notasFiscais  NotaFiscal[]
+  obras         Obra[]
+  agendaEventos AgendaEvento[]
 
   @@unique([tenantId, cpfCnpj])
   @@index([tenantId])
@@ -162,6 +169,8 @@ model Obra {
   vistorias360          Vistoria360[]
   bimModels             BimModel[]
   rateiosTransacoes     RateioTransacao[]
+  chatConversas         ChatConversa[]
+  agendaEventos         AgendaEvento[]
 
   @@index([tenantId])
   @@map("obras")
@@ -979,3 +988,192 @@ model RateioTransacao {
   @@index([categoriaId])
   @@map("rateios_transacoes")
 }
+
+// ==========================================
+// MENSAGERIA INTERNA CORPORATIVA
+// ==========================================
+
+enum TipoConversa {
+  DIRETA
+  GRUPO
+  OBRA
+  DEPARTAMENTO
+}
+
+enum FuncaoChat {
+  ADMIN
+  MEMBRO
+}
+
+enum TipoAnexo {
+  IMAGEM
+  DOCUMENTO
+  AUDIO
+  LINK_ERP
+}
+
+enum StatusMensagem {
+  ENVIADO
+  ENTREGUE
+  LIDO
+}
+
+model ChatConversa {
+  id            String             @id @default(uuid())
+  tenantId      String
+  tipo          TipoConversa       @default(DIRETA)
+  titulo        String?            // Nulo em conversas diretas
+  obraId        String?
+  criadoEm      DateTime           @default(now())
+  atualizadoEm  DateTime           @updatedAt
+
+  tenant        Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  obra          Obra?              @relation(fields: [obraId], references: [id], onDelete: SetNull)
+  participantes ChatParticipante[]
+  mensagens     ChatMensagem[]
+
+  @@index([tenantId])
+  @@index([obraId])
+  @@map("chat_conversas")
+}
+
+model ChatParticipante {
+  id             String        @id @default(uuid())
+  conversaId     String
+  usuarioId      String
+  funcao         FuncaoChat    @default(MEMBRO)
+  silenciado     Boolean       @default(false)
+  ultimaLeitura  DateTime?
+  criadoEm       DateTime      @default(now())
+
+  conversa       ChatConversa  @relation(fields: [conversaId], references: [id], onDelete: Cascade)
+  usuario        Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([conversaId, usuarioId])
+  @@index([usuarioId])
+  @@index([conversaId])
+  @@map("chat_participantes")
+}
+
+model ChatMensagem {
+  id             String          @id @default(uuid())
+  conversaId     String
+  remetenteId    String
+  conteudo       String?         @db.Text
+  tipoAnexo      TipoAnexo?
+  urlAnexo       String?
+  dadosContexto  Json?
+  status         StatusMensagem  @default(ENVIADO)
+  criadoEm       DateTime        @default(now())
+
+  conversa       ChatConversa    @relation(fields: [conversaId], references: [id], onDelete: Cascade)
+  remetente      Usuario         @relation(fields: [remetenteId], references: [id], onDelete: Cascade)
+
+  @@index([conversaId, criadoEm])
+  @@index([remetenteId])
+  @@map("chat_mensagens")
+}
+
+// ==========================================
+// AGENDA DE COMPROMISSOS (PROFISSIONAL & PESSOAL)
+// ==========================================
+
+enum TipoAgenda {
+  PROFISSIONAL
+  PESSOAL
+}
+
+enum StatusConviteAgenda {
+  PENDENTE
+  ACEITO
+  RECUSADO
+  TALVEZ
+}
+
+enum StatusEventoAgenda {
+  CONFIRMADO
+  CANCELADO
+  CONCLUIDO
+}
+
+enum CanalLembreteAgenda {
+  PUSH
+  EMAIL
+  WHATSAPP
+}
+
+model AgendaEvento {
+  id              String               @id @default(uuid())
+  tenantId        String
+  criadorId       String
+  tipo            TipoAgenda           @default(PROFISSIONAL)
+  titulo          String
+  descricao       String?              @db.Text
+  local           String?              // Link online (ex: Meet) ou endereço físico
+  dataInicio      DateTime
+  dataFim         DateTime
+  diaInteiro      Boolean              @default(false)
+  status          StatusEventoAgenda   @default(CONFIRMADO)
+  
+  // Vínculos ERP
+  obraId          String?
+  clienteId       String?
+  conversaChatId  String?              // Opcional: vinculado a um chat
+
+  // Importação / Exportação externa
+  uidIcal         String?              @unique // UID para sincronia iCal/ICS
+  recorrenciaRrule String?             // Padrão RFC 5545 para recorrência (ex: FREQ=WEEKLY)
+
+  criadoEm        DateTime             @default(now())
+  atualizadoEm    DateTime             @updatedAt
+
+  tenant          Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  criador         Usuario              @relation("AgendaCriador", fields: [criadorId], references: [id], onDelete: Cascade)
+  obra            Obra?                @relation(fields: [obraId], references: [id], onDelete: SetNull)
+  cliente         Cliente?             @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  participantes   AgendaParticipante[]
+  lembretes       AgendaLembrete[]
+
+  @@index([tenantId, criadorId])
+  @@index([dataInicio, dataFim])
+  @@index([obraId])
+  @@map("agenda_eventos")
+}
+
+model AgendaParticipante {
+  id             String               @id @default(uuid())
+  eventoId       String
+  usuarioId      String?              // Nulo se for convidado externo por e-mail
+  emailExterno   String?
+  nomeExterno    String?
+  statusConvite  StatusConviteAgenda  @default(PENDENTE)
+  motivoRecusa   String?
+  criadoEm       DateTime             @default(now())
+  atualizadoEm   DateTime             @updatedAt
+
+  evento         AgendaEvento         @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  usuario        Usuario?             @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([eventoId, usuarioId])
+  @@index([usuarioId])
+  @@index([eventoId])
+  @@map("agenda_participantes")
+}
+
+model AgendaLembrete {
+  id            String              @id @default(uuid())
+  eventoId      String
+  canal         CanalLembreteAgenda @default(PUSH)
+  minutosAntes  Int                 @default(15) // ex: 15, 60, 1440 (1 dia)
+  disparado     Boolean             @default(false)
+  disparadoEm   DateTime?
+  criadoEm      DateTime            @default(now())
+
+  evento        AgendaEvento        @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+
+  @@index([eventoId])
+  @@index([disparado, minutosAntes])
+  @@map("agenda_lembretes")
+}
+
+

@@ -50,3 +50,38 @@ export async function sendPushToRole(tenantId: string, role: string, title: stri
     console.error('Error sending push notification:', error);
   }
 }
+
+export async function sendPushToUsers(userIds: string[], title: string, body: string, data?: Record<string, string>) {
+  try {
+    if (!userIds || userIds.length === 0) return;
+
+    const users = await prisma.usuario.findMany({
+      where: { id: { in: userIds } },
+      select: { fcmTokens: true },
+    });
+
+    const tokens: string[] = [];
+    users.forEach(u => {
+      if (u.fcmTokens && Array.isArray(u.fcmTokens)) {
+        tokens.push(...u.fcmTokens);
+      }
+    });
+
+    if (tokens.length === 0) return;
+
+    const message = {
+      notification: {
+        title,
+        body,
+      },
+      data: data || {},
+      tokens,
+    };
+
+    const response = await getMessaging().sendMulticast(message);
+    console.log(`[FCM Chat] Enviado para ${response.successCount} aparelhos`);
+  } catch (error) {
+    console.error('Erro ao enviar push notification para usuários:', error);
+  }
+}
+
