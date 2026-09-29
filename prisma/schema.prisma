@@ -58,6 +58,7 @@ model Tenant {
   agendaEventos          AgendaEvento[]
   alcadasAprovacao       AlcadaAprovacao[]
   aprovacoesSolicitadas  AprovacaoRegistro[]
+  cotacoesSolicitadas    CotacaoCompra[]
 
   @@map("tenants")
 }
@@ -364,6 +365,7 @@ model Fornecedor {
   ordens               OrdemCompra[]
   contratosEmpreiteiro ContratoEmpreiteiro[]
   funcionarios         Funcionario[]
+  cotacoesRespondidas  CotacaoFornecedorResposta[]
 
   @@index([tenantId])
   @@index([empreiteiroPaiId])
@@ -381,6 +383,7 @@ model Produto {
   tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   estoqueItens  EstoqueItem[]
   ordemItens    OrdemCompraItem[]
+  cotacaoItens  CotacaoItem[]
 
   @@index([tenantId])
   @@map("produtos")
@@ -1230,6 +1233,78 @@ model AprovacaoRegistro {
   @@index([tenantId, status])
   @@index([tipoEntidade, entidadeId])
   @@map("aprovacoes_registros")
+}
+
+model CotacaoCompra {
+  id              String                      @id @default(uuid())
+  tenantId        String
+  titulo          String
+  descricao       String?
+  obraId          String?
+  prazoLimite     DateTime?
+  status          String                      @default("ABERTA") // ABERTA, FINALIZADA, CANCELADA
+  criadoEm        DateTime                    @default(now())
+  atualizadoEm    DateTime                    @updatedAt
+
+  tenant          Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  itens           CotacaoItem[]
+  respostas       CotacaoFornecedorResposta[]
+
+  @@index([tenantId, status])
+  @@map("cotacoes_compra")
+}
+
+model CotacaoItem {
+  id              String                      @id @default(uuid())
+  cotacaoId       String
+  produtoId       String
+  quantidade      Decimal
+  observacao      String?
+
+  cotacao         CotacaoCompra               @relation(fields: [cotacaoId], references: [id], onDelete: Cascade)
+  produto         Produto                     @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  respostasItens  CotacaoItemResposta[]
+
+  @@index([cotacaoId])
+  @@map("cotacao_itens")
+}
+
+model CotacaoFornecedorResposta {
+  id              String                      @id @default(uuid())
+  cotacaoId       String
+  fornecedorId    String
+  tokenAcesso     String                      @unique // Token único seguro no link enviado ao fornecedor
+  respondido      Boolean                     @default(false)
+  dataResposta    DateTime?
+  prazoEntregaDias Int?
+  condicaoPagamento String?
+  observacoes     String?
+  criadoEm        DateTime                    @default(now())
+  atualizadoEm    DateTime                    @updatedAt
+
+  cotacao         CotacaoCompra               @relation(fields: [cotacaoId], references: [id], onDelete: Cascade)
+  fornecedor      Fornecedor                  @relation(fields: [fornecedorId], references: [id], onDelete: Cascade)
+  itensResposta   CotacaoItemResposta[]
+
+  @@unique([cotacaoId, fornecedorId])
+  @@index([tokenAcesso])
+  @@map("cotacoes_fornecedores_respostas")
+}
+
+model CotacaoItemResposta {
+  id                    String                    @id @default(uuid())
+  fornecedorRespostaId  String
+  cotacaoItemId         String
+  precoUnitario         Decimal                   @default(0)
+  disponivel            Boolean                   @default(true)
+  marca                 String?
+  observacao            String?
+
+  fornecedorResposta    CotacaoFornecedorResposta @relation(fields: [fornecedorRespostaId], references: [id], onDelete: Cascade)
+  cotacaoItem           CotacaoItem               @relation(fields: [cotacaoItemId], references: [id], onDelete: Cascade)
+
+  @@unique([fornecedorRespostaId, cotacaoItemId])
+  @@map("cotacao_itens_respostas")
 }
 
 
