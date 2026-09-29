@@ -56,6 +56,8 @@ model Tenant {
   bimModels              BimModel[]
   chatConversas          ChatConversa[]
   agendaEventos          AgendaEvento[]
+  alcadasAprovacao       AlcadaAprovacao[]
+  aprovacoesSolicitadas  AprovacaoRegistro[]
 
   @@map("tenants")
 }
@@ -78,6 +80,7 @@ model Usuario {
   chatMensagensEnviadas ChatMensagem[]
   agendaEventosCriados  AgendaEvento[]       @relation("AgendaCriador")
   agendaParticipacoes   AgendaParticipante[]
+  aprovacoesFeitas      AprovacaoRegistro[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -1174,6 +1177,59 @@ model AgendaLembrete {
   @@index([eventoId])
   @@index([disparado, minutosAntes])
   @@map("agenda_lembretes")
+}
+
+enum TipoEntidadeAprovacao {
+  ORDEM_COMPRA
+  MEDICAO_EMPREITEIRO
+  CONTRATO
+  DESPESA_EXTRA
+}
+
+enum StatusAprovacao {
+  PENDENTE
+  APROVADO
+  REJEITADO
+  CANCELADO
+}
+
+model AlcadaAprovacao {
+  id              String                @id @default(uuid())
+  tenantId        String
+  tipoEntidade    TipoEntidadeAprovacao
+  valorMinimo     Decimal               @default(0)
+  valorMaximo     Decimal?              // nulo = ilimitado
+  roleAprovador   String                // ex: 'ENGENHARIA', 'FINANCEIRO', 'DIRETORIA', 'MASTER'
+  descricao       String?
+  ativo           Boolean               @default(true)
+  criadoEm        DateTime              @default(now())
+  atualizadoEm    DateTime              @updatedAt
+
+  tenant          Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, tipoEntidade])
+  @@map("alcadas_aprovacao")
+}
+
+model AprovacaoRegistro {
+  id              String                @id @default(uuid())
+  tenantId        String
+  tipoEntidade    TipoEntidadeAprovacao
+  entidadeId      String                // ID da OrdemCompra ou MedicaoEmpreiteiro
+  valorEntidade   Decimal               @default(0)
+  status          StatusAprovacao       @default(PENDENTE)
+  aprovadorId     String?               // Quem deliberou
+  justificativa   String?
+  dataDecisao     DateTime?
+  criadoEm        DateTime              @default(now())
+  atualizadoEm    DateTime              @updatedAt
+
+  tenant          Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  aprovador       Usuario?              @relation(fields: [aprovadorId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status])
+  @@index([tipoEntidade, entidadeId])
+  @@map("aprovacoes_registros")
 }
 
 

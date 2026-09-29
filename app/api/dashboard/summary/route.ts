@@ -34,7 +34,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Tenant não encontrado no banco' }, { status: 404 });
     }
 
-    const [qtdObras, qtdClientes, funcionarios, transacoes, obrasAtivasData, contasBancarias] = await Promise.all([
+    const [qtdObras, qtdClientes, funcionarios, transacoes, obrasAtivasData, contasBancarias, pendentesOC, pendentesMedicoes] = await Promise.all([
       prisma.obra.count({ where: { tenantId } }),
       prisma.cliente.count({ where: { tenantId } }),
       prisma.funcionario.count({ where: { tenantId } }),
@@ -52,7 +52,9 @@ export async function GET(request: Request) {
       prisma.contaBancaria.findMany({
         where: { tenantId, isAtiva: true },
         orderBy: { nome: 'asc' }
-      })
+      }),
+      prisma.ordemCompra.count({ where: { tenantId, status: 'PENDENTE' } }),
+      prisma.medicaoEmpreiteiro.count({ where: { tenantId, status: 'PENDENTE' } }),
     ]);
 
     let receitasPagas = 0.0;
@@ -166,6 +168,11 @@ export async function GET(request: Request) {
           saldosPorConta: Object.values(saldosContasMap),
           obrasAtivas: obrasAtivasData.length,
           colaboradoresAtivos: funcionarios,
+          totalAprovacoesPendentes: pendentesOC + pendentesMedicoes,
+          aprovacoesDetalhes: {
+            ordensCompra: pendentesOC,
+            medicoes: pendentesMedicoes,
+          },
           fluxo: {
             receitasPagas,
             despesasPagas

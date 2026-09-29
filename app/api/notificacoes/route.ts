@@ -98,7 +98,7 @@ export async function GET(request: Request) {
       select: {
         id: true,
         numero: true,
-        total: true,
+        valorTotal: true,
         createdAt: true,
         fornecedor: { select: { nome: true } },
       },
@@ -111,10 +111,44 @@ export async function GET(request: Request) {
         id: `ordem_${op.id}`,
         tipo: "SUPRIMENTOS",
         titulo: `Ordem de Compra #${op.numero} Pendente`,
-        descricao: `R\$ ${op.total} - ${op.fornecedor?.nome || "Fornecedor"} aguardando autorização`,
+        descricao: `R\$ ${op.valorTotal} - ${op.fornecedor?.nome || "Fornecedor"} aguardando autorização`,
         data: op.createdAt,
         rota: "/suprimentos",
         dados: { ordemId: op.id },
+      });
+    });
+
+    // 4. Medições de Empreiteiro Pendentes de Validação
+    const medicoesPendentes = await prisma.medicaoEmpreiteiro.findMany({
+      where: {
+        tenantId,
+        status: "PENDENTE",
+      },
+      select: {
+        id: true,
+        numero: true,
+        valorLiquidoAPagar: true,
+        dataMedicao: true,
+        contratoEmpreiteiro: {
+          select: {
+            fornecedor: { select: { nome: true } },
+            obra: { select: { nome: true } },
+          },
+        },
+      },
+      take: 5,
+      orderBy: { dataMedicao: "desc" },
+    });
+
+    medicoesPendentes.forEach((med) => {
+      notificacoes.push({
+        id: `medicao_${med.id}`,
+        tipo: "MEDICAO",
+        titulo: `Medição #${med.numero} Pendente`,
+        descricao: `R\$ ${med.valorLiquidoAPagar} - ${med.contratoEmpreiteiro.fornecedor?.nome || "Empreiteiro"} (${med.contratoEmpreiteiro.obra?.nome || "Obra"})`,
+        data: med.dataMedicao,
+        rota: "/suprimentos",
+        dados: { medicaoId: med.id },
       });
     });
 
