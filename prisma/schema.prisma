@@ -59,6 +59,7 @@ model Tenant {
   alcadasAprovacao       AlcadaAprovacao[]
   aprovacoesSolicitadas  AprovacaoRegistro[]
   cotacoesSolicitadas    CotacaoCompra[]
+  assinaturasContrato    AssinaturaEletronicaContrato[]
 
   @@map("tenants")
 }
@@ -1305,6 +1306,36 @@ model CotacaoItemResposta {
 
   @@unique([fornecedorRespostaId, cotacaoItemId])
   @@map("cotacao_itens_respostas")
+}
+
+model AssinaturaEletronicaContrato {
+  id                String    @id @default(uuid())
+  tenantId          String
+  tipoContrato      String    // EMPREITEIRO, CLIENTE, ADENDO, LOCACAO
+  referenciaId      String    // ID do Contrato, ContratoEmpreiteiro ou Proposta
+  tituloDocumento   String
+  nomeSignatario    String
+  cpfCnpjSignatario String?
+  emailSignatario   String?
+  telefoneSignatario String?
+  tokenAssinatura   String    @unique // Token único de acesso público para assinar
+  codigoOtp         String?   // Código de 6 dígitos enviado por WhatsApp/E-mail
+  otpExpiracao      DateTime?
+  status            String    @default("PENDENTE") // PENDENTE, ASSINADO, EXPIRADO, RECUSADO
+  assinaturaBase64  String?   // Imagem da rubrica desenhada pelo signatário
+  ipAssinatura      String?
+  userAgent         String?
+  geolocalizacao    String?
+  dataAssinatura    DateTime?
+  hashSha256        String?   // Hash de integridade jurídica do documento assinado
+  criadoEm          DateTime  @default(now())
+  atualizadoEm      DateTime  @updatedAt
+
+  tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([tokenAssinatura])
+  @@map("assinaturas_eletronicas_contratos")
 }
 
 
